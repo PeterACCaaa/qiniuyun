@@ -50,6 +50,25 @@ export type ReviewFinding = {
 	confidence: "high" | "medium" | "low";
 };
 
+export type FileVersionContext = {
+	refName: string;
+	refSha: string;
+	status: "loaded" | "missing" | "error";
+	content: string;
+	truncated: boolean;
+	size: number;
+	error?: string;
+};
+
+export type FileContext = {
+	filename: string;
+	highestSeverity: ReviewSeverity;
+	riskCount: number;
+	reasons: string[];
+	base: FileVersionContext;
+	head: FileVersionContext;
+};
+
 export type ReviewReport = {
 	pr: PullRequestInfo;
 	changedFiles: ChangedFile[];
@@ -57,8 +76,32 @@ export type ReviewReport = {
 	riskOverview: string;
 	riskCounts: Record<ReviewSeverity, number>;
 	findings: ReviewFinding[];
+	fileContexts: FileContext[];
 	nextSteps: string[];
 	markdown: string;
+};
+
+export type AiReviewVerdict = "approve" | "comment" | "request_changes";
+
+export type AiReviewRisk = {
+	severity: ReviewSeverity;
+	file: string;
+	lineHint: string;
+	title: string;
+	reasoning: string;
+	recommendation: string;
+	confidence: "high" | "medium" | "low";
+};
+
+export type AiReview = {
+	summary: string;
+	verdict: AiReviewVerdict;
+	confidence: "high" | "medium" | "low";
+	keyRisks: AiReviewRisk[];
+	reviewerChecklist: string[];
+	commentMarkdown: string;
+	model: string;
+	generatedAt: string;
 };
 
 export type AnalyzeRequest = {
@@ -69,6 +112,20 @@ export type AnalyzeResponse =
 	| {
 			ok: true;
 			report: ReviewReport;
+	  }
+	| {
+			ok: false;
+			error: string;
+	  };
+
+export type AiReviewRequest = {
+	report: ReviewReport;
+};
+
+export type AiReviewResponse =
+	| {
+			ok: true;
+			review: AiReview;
 	  }
 	| {
 			ok: false;

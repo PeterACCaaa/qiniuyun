@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { PrInputPanel } from "./components/PrInputPanel";
 import { ReportPreview } from "./components/ReportPreview";
-import { analyzePullRequest } from "./lib/review-client";
-import type { AnalyzeStatus, ReviewReport } from "./types/review";
+import { analyzePullRequest, generateAiReview } from "./lib/review-client";
+import type { AiReview, AnalyzeStatus, ReviewReport } from "./types/review";
 
 const SAMPLE_PR_URL = "https://github.com/PeterACCaaa/pr/pull/1";
 
@@ -10,6 +10,9 @@ export function App() {
 	const [prUrl, setPrUrl] = useState(SAMPLE_PR_URL);
 	const [status, setStatus] = useState<AnalyzeStatus>("idle");
 	const [report, setReport] = useState<ReviewReport | null>(null);
+	const [aiReview, setAiReview] = useState<AiReview | null>(null);
+	const [aiLoading, setAiLoading] = useState(false);
+	const [aiError, setAiError] = useState("");
 	const [error, setError] = useState("");
 	const [showChinese, setShowChinese] = useState(false);
 
@@ -19,6 +22,8 @@ export function App() {
 
 		setStatus("loading");
 		setError("");
+		setAiReview(null);
+		setAiError("");
 
 		const result = await analyzePullRequest(trimmedUrl);
 		if (!result.ok) {
@@ -29,6 +34,23 @@ export function App() {
 
 		setReport(result.report);
 		setStatus("success");
+	}
+
+	async function handleGenerateAiReview() {
+		if (!report || aiLoading) return;
+
+		setAiLoading(true);
+		setAiError("");
+
+		const result = await generateAiReview(report);
+		if (!result.ok) {
+			setAiError(result.error);
+			setAiLoading(false);
+			return;
+		}
+
+		setAiReview(result.review);
+		setAiLoading(false);
 	}
 
 	return (
@@ -58,6 +80,10 @@ export function App() {
 				error={error}
 				loading={status === "loading"}
 				showChinese={showChinese}
+				aiReview={aiReview}
+				aiLoading={aiLoading}
+				aiError={aiError}
+				onGenerateAiReview={handleGenerateAiReview}
 			/>
 		</main>
 	);

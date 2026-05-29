@@ -15,6 +15,7 @@ export function buildPullRequestReport(snapshot) {
 		riskOverview,
 		riskCounts: severityCounts,
 		findings,
+		fileContexts: [],
 		nextSteps: [
 			"Use AI to explain the highest-risk findings with PR context.",
 			"Fetch surrounding source files for findings that need more context.",
@@ -71,6 +72,12 @@ function buildMarkdown(snapshot, findings) {
 			);
 		}
 	}
+
+	lines.push(
+		"",
+		"### Context Enrichment",
+		"- High-risk files are enriched with base/head full-file context before AI review.",
+	);
 
 	return lines.join("\n");
 }

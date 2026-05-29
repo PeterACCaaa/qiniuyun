@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "api": "node server/dev-server.mjs",
+    "test:ai-reviewer": "node server/ai-reviewer.test.mjs",
+    "test:file-context": "node server/file-context.test.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

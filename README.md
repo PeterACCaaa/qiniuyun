@@ -4,7 +4,7 @@
 
 当前产品定位：
 
-> 把 GitHub PR 从一堆 diff 变成有证据的风险地图，帮助 reviewer 更快知道先看哪里、为什么危险、怎么验证。
+> 把 GitHub PR 从一堆 diff 变成有证据的风险地图，再交给真实大模型生成 reviewer 可执行的 Review 建议。
 
 ## 当前能力
 
@@ -14,6 +14,8 @@
 - 调 GitHub REST API 拉取 changed files
 - 后端执行确定性规则扫描
 - 前端展示真实 PR 概览、文件变更列表、风险地图和 Markdown 报告
+- 支持中文展示开关
+- 支持调用真实 OpenAI-compatible 大模型生成 AI Review
 
 ## 启动
 
@@ -21,6 +23,12 @@
 
 ```bash
 npm install
+```
+
+复制环境变量：
+
+```bash
+copy .env.example .env
 ```
 
 启动 API：
@@ -50,18 +58,33 @@ API_PORT=8787
 GITHUB_TOKEN=
 OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_API_BASE_URL=
+OPENAI_API_BASE=
 OPENAI_MODEL=gpt-5-mini
+OPENAI_REASONING_EFFORT=xhigh
+OPENAI_TEXT_VERBOSITY=low
 ```
 
-公开仓库可以不配置 `GITHUB_TOKEN`，但容易遇到 GitHub API rate limit。私有仓库必须配置有权限的 token。
+公开仓库可以不配置 `GITHUB_TOKEN`，但容易遇到 GitHub API rate limit。当前会额外为高风险文件补全 base/head 上下文，因此建议本地演示也配置 `GITHUB_TOKEN`。私有仓库必须配置有权限的 token。
+
+`OPENAI_BASE_URL` 使用 OpenAI-compatible `/v1` 接口，可切换到兼容 Responses API 的服务商。真实 AI Review 必须配置 `OPENAI_API_KEY`。如果你已有项目使用 `OPENAI_API_BASE_URL` 或 `OPENAI_API_BASE`，这里也会兼容读取。
+
+`OPENAI_REASONING_EFFORT` 可选值为 `low`、`medium`、`high`、`xhigh`。其中 `xhigh` 是部分中转服务支持的扩展值，适合深度 Review。`OPENAI_TEXT_VERBOSITY` 可选值为 `low`、`medium`、`high`，不建议填 `xhigh`。
+
+安全边界：
+
+- `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 只允许配置在服务端 `.env`
+- 前端不会读取、保存或传递任何模型 API Key
+- `/api/ai-review` 会拒绝客户端请求体中携带的 key、baseURL 或 model 字段
 
 ## 当前 API
 
 ```txt
 POST /api/analyze-pr
+POST /api/ai-review
 ```
 
-请求：
+`/api/analyze-pr` 请求：
 
 ```json
 {
@@ -76,6 +99,23 @@ POST /api/analyze-pr
 - additions / deletions
 - 每个变更文件的 filename、status、additions、deletions、changes、patch 摘要
 - 风险地图结果：severity、category、file、lineHint、evidence、impact、suggestion、howToVerify、confidence
+
+`/api/ai-review` 请求：
+
+```json
+{
+  "report": "POST /api/analyze-pr 返回的 report 对象"
+}
+```
+
+响应会返回：
+
+- AI 总结
+- Review 结论
+- 关键风险
+- 人工复核清单
+- 可复制到 GitHub PR 的 Markdown Review Comment
+- 实际使用的模型信息
 
 ## 风险地图原则
 
@@ -102,7 +142,7 @@ POST /api/analyze-pr
 
 ## 下一步
 
-1. 将 PR 上下文和风险地图交给 AI 生成 Review 建议。
-2. 拉取高风险文件的周边源码，提升上下文理解。
-3. 支持复制 Markdown 和模拟提交 Review。
-4. 增加团队自定义规则配置。
+1. 拉取高风险文件的周边源码，提升上下文理解。
+2. 支持复制 Markdown 和模拟提交 Review。
+3. 增加团队自定义规则配置。
+4. 给 AI 输出增加更严格的 schema 校验和重试机制。

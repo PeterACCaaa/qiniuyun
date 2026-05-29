@@ -5,13 +5,25 @@ import {
 	displaySeverity,
 	displaySummary,
 } from "../lib/display-i18n";
-import type { ChangedFile, ReviewFinding, ReviewReport } from "../types/review";
+import type {
+	AiReview,
+	AiReviewRisk,
+	ChangedFile,
+	FileContext,
+	FileVersionContext,
+	ReviewFinding,
+	ReviewReport,
+} from "../types/review";
 
 type ReportPreviewProps = {
 	report: ReviewReport | null;
 	error: string;
 	loading: boolean;
 	showChinese: boolean;
+	aiReview: AiReview | null;
+	aiLoading: boolean;
+	aiError: string;
+	onGenerateAiReview: () => void;
 };
 
 export function ReportPreview({
@@ -19,6 +31,10 @@ export function ReportPreview({
 	error,
 	loading,
 	showChinese,
+	aiReview,
+	aiLoading,
+	aiError,
+	onGenerateAiReview,
 }: ReportPreviewProps) {
 	if (error) {
 		return (
@@ -137,6 +153,16 @@ export function ReportPreview({
 				)}
 			</section>
 
+			<FileContextPanel contexts={report.fileContexts} showChinese={showChinese} />
+
+			<AiReviewPanel
+				review={aiReview}
+				loading={aiLoading}
+				error={aiError}
+				showChinese={showChinese}
+				onGenerate={onGenerateAiReview}
+			/>
+
 			<section className="panel markdown-panel reveal">
 				<div className="section-title">
 					{showChinese ? "Markdown 输出" : "Markdown Output"}
@@ -144,6 +170,253 @@ export function ReportPreview({
 				<pre>{report.markdown}</pre>
 			</section>
 		</div>
+	);
+}
+
+function FileContextPanel({
+	contexts,
+	showChinese,
+}: {
+	contexts: FileContext[];
+	showChinese: boolean;
+}) {
+	return (
+		<section className="panel context-panel reveal">
+			<div className="section-title">
+				<span>{showChinese ? "高风险文件上下文" : "High-risk File Context"}</span>
+				<span>
+					{showChinese
+						? `${contexts.length} 个文件`
+						: `${contexts.length} files`}
+				</span>
+			</div>
+			{contexts.length ? (
+				<div className="context-list">
+					{contexts.map((context) => (
+						<ContextCard
+							key={context.filename}
+							context={context}
+							showChinese={showChinese}
+						/>
+					))}
+				</div>
+			) : (
+				<p className="body-text">
+					{showChinese
+						? "当前风险结果没有需要补全完整文件上下文的目标。"
+						: "No high-risk file needed full-context enrichment."}
+				</p>
+			)}
+		</section>
+	);
+}
+
+function ContextCard({
+	context,
+	showChinese,
+}: {
+	context: FileContext;
+	showChinese: boolean;
+}) {
+	return (
+		<article className="context-card">
+			<div className="context-card-head">
+				<div>
+					<strong>{context.filename}</strong>
+					<p>
+						{showChinese
+							? `${context.riskCount} 个风险信号`
+							: `${context.riskCount} risk signals`}
+					</p>
+				</div>
+				<div className="finding-tags">
+					<span>{displaySeverity(context.highestSeverity, showChinese)}</span>
+				</div>
+			</div>
+			<div className="context-version-grid">
+				<VersionBadge
+					label={showChinese ? "Base 旧版本" : "Base version"}
+					version={context.base}
+					showChinese={showChinese}
+				/>
+				<VersionBadge
+					label={showChinese ? "Head 新版本" : "Head version"}
+					version={context.head}
+					showChinese={showChinese}
+				/>
+			</div>
+			<div className="context-reasons">
+				{context.reasons.slice(0, 3).map((reason) => (
+					<span key={reason}>{reason}</span>
+				))}
+			</div>
+		</article>
+	);
+}
+
+function VersionBadge({
+	label,
+	version,
+	showChinese,
+}: {
+	label: string;
+	version: FileVersionContext;
+	showChinese: boolean;
+}) {
+	return (
+		<div className={`version-badge version-${version.status}`}>
+			<span>{label}</span>
+			<strong>{displayContextStatus(version.status, showChinese)}</strong>
+			<p>
+				{version.status === "loaded"
+					? showChinese
+						? `${version.size} 字符${version.truncated ? "，已截断" : ""}`
+						: `${version.size} chars${version.truncated ? ", truncated" : ""}`
+					: version.error || version.refName}
+			</p>
+		</div>
+	);
+}
+
+function AiReviewPanel({
+	review,
+	loading,
+	error,
+	showChinese,
+	onGenerate,
+}: {
+	review: AiReview | null;
+	loading: boolean;
+	error: string;
+	showChinese: boolean;
+	onGenerate: () => void;
+}) {
+	return (
+		<section className="panel ai-panel reveal">
+			<div className="section-title ai-panel-title">
+				<div>
+					<span>{showChinese ? "AI 深度 Review" : "AI Deep Review"}</span>
+					<p>
+						{showChinese
+							? "基于真实 PR diff 和风险地图调用大模型生成。"
+							: "Generated from real PR diff and the deterministic risk map."}
+					</p>
+				</div>
+				<button className="secondary-button" disabled={loading} onClick={onGenerate}>
+					{loading
+						? showChinese
+							? "生成中..."
+							: "Generating..."
+						: showChinese
+							? "生成 AI Review"
+							: "Generate AI Review"}
+				</button>
+			</div>
+
+			{error && <p className="inline-error">{error}</p>}
+			{loading && (
+				<div className="ai-loading">
+					<div className="scanner-orbit" />
+					<p>{showChinese ? "正在请求真实大模型..." : "Calling the live model..."}</p>
+				</div>
+			)}
+			{review && !loading && <AiReviewResult review={review} showChinese={showChinese} />}
+			{!review && !loading && !error && (
+				<p className="body-text">
+					{showChinese
+						? "先生成风险地图，再让 AI 把高风险证据转成 reviewer 可执行的结论。"
+						: "Generate an AI review after the risk map is ready."}
+				</p>
+			)}
+		</section>
+	);
+}
+
+function AiReviewResult({
+	review,
+	showChinese,
+}: {
+	review: AiReview;
+	showChinese: boolean;
+}) {
+	return (
+		<div className="ai-result">
+			<div className="ai-meta-grid">
+				<MetricCard
+					label={showChinese ? "模型" : "Model"}
+					value={review.model}
+				/>
+				<MetricCard
+					label={showChinese ? "结论" : "Verdict"}
+					value={displayVerdict(review.verdict, showChinese)}
+				/>
+				<MetricCard
+					label={showChinese ? "置信度" : "Confidence"}
+					value={displayConfidence(review.confidence, showChinese)}
+				/>
+			</div>
+			<p className="body-text">{review.summary}</p>
+
+			<div className="ai-risk-list">
+				{review.keyRisks.map((risk, index) => (
+					<AiRiskCard
+						key={`${risk.file}:${risk.lineHint}:${index}`}
+						risk={risk}
+						showChinese={showChinese}
+					/>
+				))}
+			</div>
+
+			{review.reviewerChecklist.length > 0 && (
+				<div className="checklist">
+					<strong>{showChinese ? "人工复核清单" : "Reviewer Checklist"}</strong>
+					<ul>
+						{review.reviewerChecklist.map((item) => (
+							<li key={item}>{item}</li>
+						))}
+					</ul>
+				</div>
+			)}
+
+			<div className="markdown-panel ai-comment">
+				<div className="section-title">
+					{showChinese ? "可复制 Review Comment" : "Copy-ready Review Comment"}
+				</div>
+				<pre>{review.commentMarkdown}</pre>
+			</div>
+		</div>
+	);
+}
+
+function AiRiskCard({
+	risk,
+	showChinese,
+}: {
+	risk: AiReviewRisk;
+	showChinese: boolean;
+}) {
+	return (
+		<article className={`finding finding-${risk.severity}`}>
+			<div className="finding-head">
+				<div>
+					<strong>{risk.title}</strong>
+					<p className="file-line">
+						{risk.file}:{risk.lineHint}
+					</p>
+				</div>
+				<div className="finding-tags">
+					<span>{displaySeverity(risk.severity, showChinese)}</span>
+					<span>{displayConfidence(risk.confidence, showChinese)}</span>
+				</div>
+			</div>
+			<div className="finding-detail">
+				<DetailRow label={showChinese ? "判断" : "Reasoning"} value={risk.reasoning} />
+				<DetailRow
+					label={showChinese ? "建议" : "Recommendation"}
+					value={risk.recommendation}
+				/>
+			</div>
+		</article>
 	);
 }
 
@@ -349,6 +622,36 @@ function displayFileStatus(value: string, chinese: boolean) {
 		modified: "修改",
 		removed: "删除",
 		renamed: "重命名",
+	};
+	return map[value] || value;
+}
+
+function displayVerdict(value: string, chinese: boolean) {
+	if (!chinese) return value;
+	const map: Record<string, string> = {
+		approve: "可通过",
+		comment: "建议补充",
+		request_changes: "建议修改",
+	};
+	return map[value] || value;
+}
+
+function displayConfidence(value: string, chinese: boolean) {
+	if (!chinese) return value;
+	const map: Record<string, string> = {
+		high: "高置信",
+		medium: "中置信",
+		low: "低置信",
+	};
+	return map[value] || value;
+}
+
+function displayContextStatus(value: string, chinese: boolean) {
+	if (!chinese) return value;
+	const map: Record<string, string> = {
+		loaded: "已加载",
+		missing: "不存在",
+		error: "加载失败",
 	};
 	return map[value] || value;
 }

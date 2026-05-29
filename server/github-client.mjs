@@ -1,4 +1,5 @@
 const GITHUB_API = "https://api.github.com";
+const GITHUB_RAW = "https://raw.githubusercontent.com";
 const MAX_FILES = 100;
 
 export function parseGithubPullRequestUrl(value) {
@@ -39,9 +40,90 @@ export async function fetchPullRequestSnapshot(prUrl, env = process.env) {
 	return normalizePullRequest(pr, files, prUrl);
 }
 
+export async function fetchRepositoryFileText(
+	{ owner, repo, path, ref },
+	env = process.env,
+) {
+	if (!env.GITHUB_TOKEN) {
+		return fetchRawRepositoryFileText({ owner, repo, path, ref });
+	}
+
+	const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+	const response = await githubRequest(
+		`/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(ref)}`,
+		env,
+		{ Accept: "application/vnd.github.raw" },
+	);
+
+	if (response.status === 404) {
+		return {
+			status: "missing",
+			content: "",
+			size: 0,
+		};
+	}
+
+	const text = await response.text();
+	if (!response.ok) {
+		const data = parseMaybeJson(text);
+		throw createGithubError(response.status, data);
+	}
+
+	return {
+		status: "loaded",
+		content: text,
+		size: text.length,
+	};
+}
+
+async function fetchRawRepositoryFileText({ owner, repo, path, ref }) {
+	const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+	const url = `${GITHUB_RAW}/${encodeURIComponent(owner)}/${encodeURIComponent(
+		repo,
+	)}/${encodeURIComponent(ref)}/${encodedPath}`;
+	const response = await fetch(url);
+
+	if (response.status === 404) {
+		return {
+			status: "missing",
+			content: "",
+			size: 0,
+		};
+	}
+
+	if (!response.ok) {
+		return {
+			status: "error",
+			content: "",
+			size: 0,
+			error: `raw file request failed with HTTP ${response.status}`,
+		};
+	}
+
+	const text = await response.text();
+	return {
+		status: "loaded",
+		content: text,
+		size: text.length,
+	};
+}
+
 async function githubGet(path, env) {
-	const headers = {
+	const response = await githubRequest(path, env, {
 		Accept: "application/vnd.github+json",
+	});
+	const data = await response.json().catch(() => null);
+
+	if (!response.ok) {
+		throw createGithubError(response.status, data);
+	}
+
+	return data;
+}
+
+async function githubRequest(path, env, extraHeaders = {}) {
+	const headers = {
+		...extraHeaders,
 		"User-Agent": "ai-pr-review-assistant",
 		"X-GitHub-Api-Version": "2022-11-28",
 	};
@@ -50,14 +132,7 @@ async function githubGet(path, env) {
 		headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
 	}
 
-	const response = await fetch(`${GITHUB_API}${path}`, { headers });
-	const data = await response.json().catch(() => null);
-
-	if (!response.ok) {
-		throw createGithubError(response.status, data);
-	}
-
-	return data;
+	return fetch(`${GITHUB_API}${path}`, { headers });
 }
 
 function createGithubError(status, data) {
@@ -81,6 +156,14 @@ function formatGithubError(status, message) {
 
 function normalizePullRequest(pr, files, prUrl) {
 	return {
+		repository: {
+			owner: readString(pr.base?.repo?.owner?.login, ""),
+			repo: readString(pr.base?.repo?.name, ""),
+		},
+		refs: {
+			baseSha: readString(pr.base?.sha, ""),
+			headSha: readString(pr.head?.sha, ""),
+		},
 		pr: {
 			title: readString(pr.title, "Untitled PR"),
 			url: readString(pr.html_url, prUrl),
@@ -117,4 +200,12 @@ function readString(value, fallback) {
 
 function readNumber(value) {
 	return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function parseMaybeJson(text) {
+	try {
+		return JSON.parse(text);
+	} catch {
+		return null;
+	}
 }

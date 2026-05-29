@@ -1,6 +1,11 @@
 import http from "node:http";
+import { generateAiReview } from "./ai-reviewer.mjs";
+import { loadDotenv } from "./env-loader.mjs";
+import { enrichReportWithFileContexts } from "./file-context.mjs";
 import { fetchPullRequestSnapshot } from "./github-client.mjs";
 import { buildPullRequestReport } from "./report-builder.mjs";
+
+loadDotenv();
 
 const PORT = Number(process.env.API_PORT || 8787);
 
@@ -16,9 +21,32 @@ const server = http.createServer(async (req, res) => {
 
 		try {
 			const snapshot = await fetchPullRequestSnapshot(prUrl);
+			const report = await enrichReportWithFileContexts(
+				buildPullRequestReport(snapshot),
+				snapshot,
+			);
 			sendJson(res, 200, {
 				ok: true,
-				report: buildPullRequestReport(snapshot),
+				report,
+			});
+		} catch (error) {
+			sendJson(res, error.statusCode || 500, {
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+		return;
+	}
+
+	if (req.method === "POST" && req.url === "/api/ai-review") {
+		const body = await readJson(req);
+
+		try {
+			rejectClientCredentials(body);
+			const review = await generateAiReview(body.report);
+			sendJson(res, 200, {
+				ok: true,
+				review,
 			});
 		} catch (error) {
 			sendJson(res, error.statusCode || 500, {
@@ -45,6 +73,7 @@ function sendJson(res, statusCode, payload) {
 		"Access-Control-Allow-Methods": "POST, OPTIONS",
 		"Access-Control-Allow-Headers": "Content-Type",
 		"Content-Type": "application/json; charset=utf-8",
+		"Cache-Control": "no-store",
 	});
 
 	if (statusCode === 204) {
@@ -69,4 +98,27 @@ function readJson(req) {
 			}
 		});
 	});
+}
+
+function rejectClientCredentials(body) {
+	const forbiddenFields = [
+		"apiKey",
+		"api_key",
+		"openaiApiKey",
+		"OPENAI_API_KEY",
+		"baseUrl",
+		"base_url",
+		"OPENAI_BASE_URL",
+		"model",
+		"OPENAI_MODEL",
+	];
+
+	const found = forbiddenFields.find((field) => body && body[field] !== undefined);
+	if (!found) return;
+
+	const error = new Error(
+		"AI 凭据和模型配置只能放在服务端 .env，不能由前端请求传入。",
+	);
+	error.statusCode = 400;
+	throw error;
 }
