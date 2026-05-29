@@ -2,9 +2,20 @@ import { useState } from "react";
 import { PrInputPanel } from "./components/PrInputPanel";
 import { ReportPreview } from "./components/ReportPreview";
 import { analyzePullRequest, generateAiReview } from "./lib/review-client";
-import type { AiReview, AnalyzeStatus, ReviewReport } from "./types/review";
+import type {
+	AiReview,
+	AiReviewMode,
+	AnalyzeStatus,
+	ReviewSkill,
+	ReviewReport,
+} from "./types/review";
 
 const SAMPLE_PR_URL = "https://github.com/PeterACCaaa/pr/pull/1";
+const DEFAULT_REVIEW_SKILLS: ReviewSkill[] = [
+	"security",
+	"test",
+	"maintainability",
+];
 
 export function App() {
 	const [prUrl, setPrUrl] = useState(SAMPLE_PR_URL);
@@ -13,6 +24,9 @@ export function App() {
 	const [aiReview, setAiReview] = useState<AiReview | null>(null);
 	const [aiLoading, setAiLoading] = useState(false);
 	const [aiError, setAiError] = useState("");
+	const [aiMode, setAiMode] = useState<AiReviewMode>("deep");
+	const [reviewSkills, setReviewSkills] =
+		useState<ReviewSkill[]>(DEFAULT_REVIEW_SKILLS);
 	const [error, setError] = useState("");
 	const [showChinese, setShowChinese] = useState(false);
 
@@ -42,7 +56,7 @@ export function App() {
 		setAiLoading(true);
 		setAiError("");
 
-		const result = await generateAiReview(report);
+		const result = await generateAiReview(report, aiMode, reviewSkills);
 		if (!result.ok) {
 			setAiError(result.error);
 			setAiLoading(false);
@@ -83,6 +97,10 @@ export function App() {
 				aiReview={aiReview}
 				aiLoading={aiLoading}
 				aiError={aiError}
+				aiMode={aiMode}
+				reviewSkills={reviewSkills}
+				onModeChange={setAiMode}
+				onSkillsChange={setReviewSkills}
 				onGenerateAiReview={handleGenerateAiReview}
 			/>
 		</main>

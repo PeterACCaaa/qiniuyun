@@ -1,8 +1,77 @@
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_MODEL = "gpt-5-mini";
 const MAX_PATCH_CHARS = 24000;
+const DEFAULT_REVIEW_SKILLS = ["security", "test", "maintainability"];
+const REVIEW_SKILL_REGISTRY = {
+	security: {
+		label: "Security",
+		focus: [
+			"hardcoded secrets or tokens",
+			"SQL injection and command injection",
+			"authentication, authorization, and permission boundary changes",
+			"unsafe crypto or sensitive data handling",
+		],
+		instruction:
+			"Prioritize security defects. Distinguish proven vulnerabilities from items that need manual verification.",
+	},
+	test: {
+		label: "Tests",
+		focus: [
+			"missing tests for changed behavior",
+			"edge cases and regression paths",
+			"removed or weakened assertions",
+			"risky changes without verification evidence",
+		],
+		instruction:
+			"Prioritize actionable test gaps and suggest concrete regression cases instead of generic coverage advice.",
+	},
+	maintainability: {
+		label: "Maintainability",
+		focus: [
+			"high complexity and deeply nested logic",
+			"duplicated business rules",
+			"unclear module boundaries",
+			"hard-to-review large files or broad changes",
+		],
+		instruction:
+			"Prioritize maintainability issues only when they materially increase future change or review risk.",
+	},
+	performance: {
+		label: "Performance",
+		focus: [
+			"N+1 queries or repeated network/database work",
+			"unnecessary repeated computation",
+			"large payloads or inefficient loops",
+			"frontend rendering cost and avoidable re-renders",
+		],
+		instruction:
+			"Prioritize performance risks with a plausible hot path or measurable impact. Avoid speculative micro-optimizations.",
+	},
+	frontend: {
+		label: "Frontend",
+		focus: [
+			"React state and effect dependency mistakes",
+			"form and loading/error state behavior",
+			"accessibility and keyboard interaction",
+			"UI regressions caused by data shape changes",
+		],
+		instruction:
+			"Prioritize user-visible frontend defects and interaction regressions.",
+	},
+	backend: {
+		label: "Backend",
+		focus: [
+			"API contract compatibility",
+			"error handling and status codes",
+			"data consistency and transaction boundaries",
+			"input validation and backward compatibility",
+		],
+		instruction:
+			"Prioritize backend correctness, contract, and data consistency risks.",
+	},
+};
 
-export async function generateAiReview(report, env = process.env) {
+export async function generateAiReview(report, options = {}, env = process.env) {
 	const apiKey = env.OPENAI_API_KEY;
 	if (!apiKey) {
 		const error = new Error(
@@ -18,7 +87,9 @@ export async function generateAiReview(report, env = process.env) {
 		env.OPENAI_API_BASE ||
 		DEFAULT_BASE_URL;
 	const model = env.OPENAI_MODEL || DEFAULT_MODEL;
-	const payload = buildRequestPayload(report, model);
+	const modeConfig = resolveReviewMode(options.mode, env);
+	const skills = resolveReviewSkills(options.skills);
+	const payload = buildRequestPayload(report, model, modeConfig, skills);
 	const response = await fetch(`${normalizeBaseUrl(baseUrl)}/responses`, {
 		method: "POST",
 		headers: {
@@ -40,7 +111,11 @@ export async function generateAiReview(report, env = process.env) {
 		);
 	}
 
-	return normalizeAiReview(parseJsonContent(content), { model });
+	return normalizeAiReview(parseJsonContent(content), {
+		model,
+		mode: modeConfig.mode,
+		skills: skills.map((skill) => skill.id),
+	});
 }
 
 export function extractModelContent(data) {
@@ -64,17 +139,57 @@ export function extractModelContent(data) {
 	return "";
 }
 
-function buildRequestPayload(report, model) {
+function buildRequestPayload(report, model, modeConfig, skills = resolveReviewSkills()) {
 	return {
 		model,
-		reasoning: { effort: normalizeReasoningEffort(process.env.OPENAI_REASONING_EFFORT) },
-		text: { verbosity: normalizeTextVerbosity(process.env.OPENAI_TEXT_VERBOSITY) },
+		reasoning: { effort: modeConfig.reasoningEffort },
+		text: { verbosity: modeConfig.textVerbosity },
 		instructions: [
 			"你是资深代码评审助手，只基于用户提供的 PR 元信息、changed files、patch 和规则扫描结果输出审查建议。",
 			"不要编造未提供的代码上下文。无法确认的问题要降低置信度，并写明需要人工复核。",
 			"输出必须是严格 JSON，不要包含 Markdown 代码围栏。",
 		].join("\n"),
-		input: buildPrompt(report),
+		input: buildPrompt(report, skills),
+	};
+}
+
+export function createAiReviewRequestPayload(
+	report,
+	model,
+	mode,
+	env = process.env,
+	skills,
+) {
+	return buildRequestPayload(
+		report,
+		model,
+		resolveReviewMode(mode, env),
+		resolveReviewSkills(skills),
+	);
+}
+
+function resolveReviewMode(mode, env = process.env) {
+	const hasExplicitMode = ["fast", "standard", "deep"].includes(mode);
+	const normalizedMode = hasExplicitMode ? mode : "deep";
+	const defaults = {
+		fast: { reasoningEffort: "low", textVerbosity: "low" },
+		standard: { reasoningEffort: "medium", textVerbosity: "medium" },
+		deep: { reasoningEffort: "xhigh", textVerbosity: "low" },
+	};
+	const selected = defaults[normalizedMode];
+
+	return {
+		mode: normalizedMode,
+		reasoningEffort: normalizeReasoningEffort(
+			hasExplicitMode
+				? selected.reasoningEffort
+				: env.OPENAI_REASONING_EFFORT || selected.reasoningEffort,
+		),
+		textVerbosity: normalizeTextVerbosity(
+			hasExplicitMode
+				? selected.textVerbosity
+				: env.OPENAI_TEXT_VERBOSITY || selected.textVerbosity,
+		),
 	};
 }
 
@@ -88,17 +203,48 @@ function normalizeTextVerbosity(value) {
 	return "low";
 }
 
+function resolveReviewSkills(rawSkills = DEFAULT_REVIEW_SKILLS) {
+	const selected = Array.isArray(rawSkills) ? rawSkills : DEFAULT_REVIEW_SKILLS;
+	const seen = new Set();
+	const skills = [];
+
+	for (const skillId of selected) {
+		if (!Object.hasOwn(REVIEW_SKILL_REGISTRY, skillId) || seen.has(skillId)) {
+			continue;
+		}
+
+		seen.add(skillId);
+		skills.push({
+			id: skillId,
+			...REVIEW_SKILL_REGISTRY[skillId],
+		});
+	}
+
+	if (skills.length) return skills;
+
+	return DEFAULT_REVIEW_SKILLS.map((skillId) => ({
+		id: skillId,
+		...REVIEW_SKILL_REGISTRY[skillId],
+	}));
+}
+
 export function normalizeBaseUrl(rawUrl) {
 	const trimmed = rawUrl.trim().replace(/\/+$/, "");
 	return trimmed.endsWith("/v1") ? trimmed : `${trimmed}/v1`;
 }
 
-function buildPrompt(report) {
+function buildPrompt(report, skills = resolveReviewSkills()) {
 	const context = {
 		pr: report?.pr,
 		summary: report?.summary,
 		riskOverview: report?.riskOverview,
 		riskCounts: report?.riskCounts,
+		reviewSkills: skills.map((skill) => ({
+			id: skill.id,
+			label: skill.label,
+			focus: skill.focus,
+			instruction: skill.instruction,
+		})),
 		findings: Array.isArray(report?.findings) ? report.findings : [],
 		fileContexts: normalizeFileContexts(report),
 		changedFiles: normalizeChangedFiles(report),
@@ -138,6 +284,10 @@ function buildPrompt(report) {
 		"- 如果 patch 不足以确认 bug，必须写成“需要复核”，不要直接断定。",
 		"",
 		"PR 上下文：",
+		"Review skill policy:",
+		"- Prioritize the enabled reviewSkills from the PR context.",
+		"- If a skill is not enabled, mention it only when there is blocking evidence.",
+		"- commentMarkdown must include one short line: Enabled skills: <skill labels>.",
 		JSON.stringify(context, null, 2),
 	].join("\n");
 }
@@ -265,6 +415,8 @@ function normalizeAiReview(value, meta) {
 		reviewerChecklist: checklist,
 		commentMarkdown: readString(value.commentMarkdown) || buildFallbackComment(keyRisks),
 		model: meta.model,
+		mode: meta.mode,
+		skills: Array.isArray(meta.skills) ? meta.skills : DEFAULT_REVIEW_SKILLS,
 		generatedAt: new Date().toISOString(),
 	};
 }

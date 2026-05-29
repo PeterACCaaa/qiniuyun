@@ -1,4 +1,10 @@
-import type { AiReviewResponse, AnalyzeResponse, ReviewReport } from "../types/review";
+import type {
+	AiReviewMode,
+	AiReviewResponse,
+	AnalyzeResponse,
+	ReviewSkill,
+	ReviewReport,
+} from "../types/review";
 
 export async function analyzePullRequest(prUrl: string): Promise<AnalyzeResponse> {
 	const response = await fetch("/api/analyze-pr", {
@@ -14,13 +20,17 @@ export async function analyzePullRequest(prUrl: string): Promise<AnalyzeResponse
 	return payload;
 }
 
-export async function generateAiReview(report: ReviewReport): Promise<AiReviewResponse> {
+export async function generateAiReview(
+	report: ReviewReport,
+	mode: AiReviewMode,
+	skills: ReviewSkill[],
+): Promise<AiReviewResponse> {
 	const response = await fetch("/api/ai-review", {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
 		},
-		body: JSON.stringify({ report }),
+		body: JSON.stringify({ report, mode, skills }),
 	});
 
 	const payload = (await response.json()) as AiReviewResponse;

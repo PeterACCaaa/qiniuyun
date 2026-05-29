@@ -82,6 +82,14 @@ export type ReviewReport = {
 };
 
 export type AiReviewVerdict = "approve" | "comment" | "request_changes";
+export type AiReviewMode = "fast" | "standard" | "deep";
+export type ReviewSkill =
+	| "security"
+	| "test"
+	| "maintainability"
+	| "performance"
+	| "frontend"
+	| "backend";
 
 export type AiReviewRisk = {
 	severity: ReviewSeverity;
@@ -101,6 +109,8 @@ export type AiReview = {
 	reviewerChecklist: string[];
 	commentMarkdown: string;
 	model: string;
+	mode: AiReviewMode;
+	skills: ReviewSkill[];
 	generatedAt: string;
 };
 
@@ -120,6 +130,8 @@ export type AnalyzeResponse =
 
 export type AiReviewRequest = {
 	report: ReviewReport;
+	mode: AiReviewMode;
+	skills: ReviewSkill[];
 };
 
 export type AiReviewResponse =

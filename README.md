@@ -16,6 +16,9 @@
 - 前端展示真实 PR 概览、文件变更列表、风险地图和 Markdown 报告
 - 支持中文展示开关
 - 支持调用真实 OpenAI-compatible 大模型生成 AI Review
+- 支持快速 / 标准 / 深度三种 AI Review 模式
+- 支持 Review Skills 技能包选择：Security、Tests、Maintainability、Performance、Frontend、Backend
+- 支持一键复制 AI Review Comment 到剪贴板
 
 ## 启动
 
@@ -104,7 +107,9 @@ POST /api/ai-review
 
 ```json
 {
-  "report": "POST /api/analyze-pr 返回的 report 对象"
+  "report": "POST /api/analyze-pr 返回的 report 对象",
+  "mode": "deep",
+  "skills": ["security", "test", "maintainability"]
 }
 ```
 
@@ -116,6 +121,7 @@ POST /api/ai-review
 - 人工复核清单
 - 可复制到 GitHub PR 的 Markdown Review Comment
 - 实际使用的模型信息
+- 本次启用的 Review Skills
 
 ## 风险地图原则
 
@@ -139,6 +145,25 @@ POST /api/ai-review
 - 测试文件删除
 - 大文件或大 PR 变更
 - patch 中疑似硬编码密钥、`eval`、空 `catch`、SQL 字符串拼接
+
+## AI Review 模式
+
+- 快速：`reasoning.effort=low`，适合小 PR 或快速预检。
+- 标准：`reasoning.effort=medium`，适合常规代码评审。
+- 深度：`reasoning.effort=xhigh`，适合高风险 PR 或比赛演示。
+
+前端只传业务模式，不传 API Key、base URL 或模型底层配置。服务端负责把模式映射为模型参数，并生成可直接复制到 GitHub PR 的 Markdown Review Comment。
+
+## Review Skills
+
+Review Skills 是可控审查专家配置，不是单纯 UI 标签。前端会把选中的技能传给 `/api/ai-review`，后端会做白名单过滤后注入模型上下文。
+
+- Security：密钥、注入、鉴权、权限边界
+- Tests：测试缺失、边界用例、回归路径
+- Maintainability：复杂度、重复逻辑、模块边界
+- Performance：重复计算、N+1、渲染或数据处理性能
+- Frontend：React 状态、交互、可访问性、UI 回归
+- Backend：API 契约、错误处理、数据一致性
 
 ## 下一步
 

@@ -811,6 +811,89 @@ h2 {
 	line-height: 1.5;
 }
 
+.ai-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.mode-selector {
+	display: inline-grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	overflow: hidden;
+	border: 1px solid #cfd8d0;
+	border-radius: 7px;
+	background: #fff;
+}
+
+.mode-selector button {
+	min-height: 38px;
+	padding: 0 12px;
+	color: #52615d;
+	background: transparent;
+	font-size: 13px;
+	font-weight: 900;
+}
+
+.mode-selector button + button {
+	border-left: 1px solid #e4ebe5;
+}
+
+.mode-selector button.active {
+	color: #fff;
+	background: #1f7a6d;
+}
+
+.skill-selector {
+	display: grid;
+	gap: 6px;
+	max-width: 460px;
+}
+
+.skill-selector > span,
+.skill-pill-row > span {
+	color: #65736e;
+	font-size: 11px;
+	font-weight: 900;
+	text-transform: uppercase;
+}
+
+.skill-selector > div,
+.skill-pill-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	justify-content: flex-end;
+}
+
+.skill-selector button,
+.skill-pill-row strong {
+	min-height: 30px;
+	border-radius: 999px;
+	padding: 0 10px;
+	background: #eef3ef;
+	color: #52615d;
+	font-size: 12px;
+	font-weight: 900;
+}
+
+.skill-selector button.active {
+	background: #e7f4ec;
+	color: #176b5e;
+	box-shadow: inset 0 0 0 1px rgba(31, 122, 109, 0.28);
+}
+
+.skill-pill-row {
+	align-items: center;
+	justify-content: flex-start;
+}
+
+.skill-pill-row strong {
+	display: inline-flex;
+	align-items: center;
+}
+
 .inline-error {
 	border: 1px solid rgba(189, 59, 59, 0.28);
 	border-radius: 7px;
@@ -844,7 +927,7 @@ h2 {
 
 .ai-meta-grid {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 12px;
 }
 
@@ -876,6 +959,16 @@ h2 {
 
 .ai-comment pre {
 	max-height: 300px;
+}
+
+.copy-button {
+	min-height: 30px;
+	border-radius: 6px;
+	padding: 0 10px;
+	color: #1f7a6d;
+	background: #e7f4ec;
+	font-size: 12px;
+	font-weight: 900;
 }
 
 .markdown-panel pre {
@@ -1022,6 +1115,23 @@ h2 {
 	.ai-loading {
 		align-items: stretch;
 		flex-direction: column;
+	}
+
+	.ai-actions {
+		justify-content: stretch;
+	}
+
+	.mode-selector,
+	.skill-selector {
+		width: 100%;
+	}
+
+	.skill-selector > div {
+		justify-content: flex-start;
+	}
+
+	.ai-actions .secondary-button {
+		width: 100%;
 	}
 
 	.ai-meta-grid {

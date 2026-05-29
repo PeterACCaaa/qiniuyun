@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
 	displayCategory,
 	displayFinding,
@@ -7,12 +8,14 @@ import {
 } from "../lib/display-i18n";
 import type {
 	AiReview,
+	AiReviewMode,
 	AiReviewRisk,
 	ChangedFile,
 	FileContext,
 	FileVersionContext,
 	ReviewFinding,
 	ReviewReport,
+	ReviewSkill,
 } from "../types/review";
 
 type ReportPreviewProps = {
@@ -23,6 +26,10 @@ type ReportPreviewProps = {
 	aiReview: AiReview | null;
 	aiLoading: boolean;
 	aiError: string;
+	aiMode: AiReviewMode;
+	reviewSkills: ReviewSkill[];
+	onModeChange: (mode: AiReviewMode) => void;
+	onSkillsChange: (skills: ReviewSkill[]) => void;
 	onGenerateAiReview: () => void;
 };
 
@@ -34,6 +41,10 @@ export function ReportPreview({
 	aiReview,
 	aiLoading,
 	aiError,
+	aiMode,
+	reviewSkills,
+	onModeChange,
+	onSkillsChange,
 	onGenerateAiReview,
 }: ReportPreviewProps) {
 	if (error) {
@@ -160,6 +171,10 @@ export function ReportPreview({
 				loading={aiLoading}
 				error={aiError}
 				showChinese={showChinese}
+				mode={aiMode}
+				skills={reviewSkills}
+				onModeChange={onModeChange}
+				onSkillsChange={onSkillsChange}
 				onGenerate={onGenerateAiReview}
 			/>
 
@@ -283,12 +298,20 @@ function AiReviewPanel({
 	loading,
 	error,
 	showChinese,
+	mode,
+	skills,
+	onModeChange,
+	onSkillsChange,
 	onGenerate,
 }: {
 	review: AiReview | null;
 	loading: boolean;
 	error: string;
 	showChinese: boolean;
+	mode: AiReviewMode;
+	skills: ReviewSkill[];
+	onModeChange: (mode: AiReviewMode) => void;
+	onSkillsChange: (skills: ReviewSkill[]) => void;
 	onGenerate: () => void;
 }) {
 	return (
@@ -302,15 +325,29 @@ function AiReviewPanel({
 							: "Generated from real PR diff and the deterministic risk map."}
 					</p>
 				</div>
-				<button className="secondary-button" disabled={loading} onClick={onGenerate}>
-					{loading
-						? showChinese
-							? "生成中..."
-							: "Generating..."
-						: showChinese
-							? "生成 AI Review"
-							: "Generate AI Review"}
-				</button>
+				<div className="ai-actions">
+					<ModeSelector
+						mode={mode}
+						disabled={loading}
+						showChinese={showChinese}
+						onChange={onModeChange}
+					/>
+					<SkillSelector
+						skills={skills}
+						disabled={loading}
+						showChinese={showChinese}
+						onChange={onSkillsChange}
+					/>
+					<button className="secondary-button" disabled={loading} onClick={onGenerate}>
+						{loading
+							? showChinese
+								? "生成中..."
+								: "Generating..."
+							: showChinese
+								? "生成 AI Review"
+								: "Generate AI Review"}
+					</button>
+				</div>
 			</div>
 
 			{error && <p className="inline-error">{error}</p>}
@@ -332,6 +369,111 @@ function AiReviewPanel({
 	);
 }
 
+function ModeSelector({
+	mode,
+	disabled,
+	showChinese,
+	onChange,
+}: {
+	mode: AiReviewMode;
+	disabled: boolean;
+	showChinese: boolean;
+	onChange: (mode: AiReviewMode) => void;
+}) {
+	const options: Array<{
+		value: AiReviewMode;
+		label: string;
+		description: string;
+	}> = [
+		{
+			value: "fast",
+			label: showChinese ? "快速" : "Fast",
+			description: "low",
+		},
+		{
+			value: "standard",
+			label: showChinese ? "标准" : "Standard",
+			description: "medium",
+		},
+		{
+			value: "deep",
+			label: showChinese ? "深度" : "Deep",
+			description: "xhigh",
+		},
+	];
+
+	return (
+		<div className="mode-selector" role="group" aria-label="AI Review mode">
+			{options.map((option) => (
+				<button
+					key={option.value}
+					type="button"
+					className={mode === option.value ? "active" : ""}
+					disabled={disabled}
+					onClick={() => onChange(option.value)}
+					title={option.description}
+				>
+					{option.label}
+				</button>
+			))}
+		</div>
+	);
+}
+
+function SkillSelector({
+	skills,
+	disabled,
+	showChinese,
+	onChange,
+}: {
+	skills: ReviewSkill[];
+	disabled: boolean;
+	showChinese: boolean;
+	onChange: (skills: ReviewSkill[]) => void;
+}) {
+	const options: ReviewSkill[] = [
+		"security",
+		"test",
+		"maintainability",
+		"performance",
+		"frontend",
+		"backend",
+	];
+
+	function toggleSkill(skill: ReviewSkill) {
+		if (skills.includes(skill)) {
+			onChange(skills.filter((item) => item !== skill));
+			return;
+		}
+
+		onChange([...skills, skill]);
+	}
+
+	return (
+		<div className="skill-selector" aria-label="Review skills">
+			<span>{showChinese ? "Review 技能" : "Review Skills"}</span>
+			<div>
+				{options.map((skill) => {
+					const active = skills.includes(skill);
+					return (
+						<button
+							key={skill}
+							type="button"
+							className={active ? "active" : ""}
+							disabled={disabled}
+							onClick={() => toggleSkill(skill)}
+							title={displayReviewSkillDescription(skill)}
+						>
+							{active ? "✓ " : ""}
+							{displayReviewSkill(skill, showChinese)}
+						</button>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
+
 function AiReviewResult({
 	review,
 	showChinese,
@@ -347,6 +489,10 @@ function AiReviewResult({
 					value={review.model}
 				/>
 				<MetricCard
+					label={showChinese ? "模式" : "Mode"}
+					value={displayReviewMode(review.mode, showChinese)}
+				/>
+				<MetricCard
 					label={showChinese ? "结论" : "Verdict"}
 					value={displayVerdict(review.verdict, showChinese)}
 				/>
@@ -355,6 +501,14 @@ function AiReviewResult({
 					value={displayConfidence(review.confidence, showChinese)}
 				/>
 			</div>
+			{review.skills.length > 0 && (
+				<div className="skill-pill-row">
+					<span>{showChinese ? "已启用技能" : "Enabled Skills"}</span>
+					{review.skills.map((skill) => (
+						<strong key={skill}>{displayReviewSkill(skill, showChinese)}</strong>
+					))}
+				</div>
+			)}
 			<p className="body-text">{review.summary}</p>
 
 			<div className="ai-risk-list">
@@ -380,11 +534,43 @@ function AiReviewResult({
 
 			<div className="markdown-panel ai-comment">
 				<div className="section-title">
-					{showChinese ? "可复制 Review Comment" : "Copy-ready Review Comment"}
+					<span>
+						{showChinese ? "可复制 Review Comment" : "Copy-ready Review Comment"}
+					</span>
+					<CopyButton text={review.commentMarkdown} showChinese={showChinese} />
 				</div>
 				<pre>{review.commentMarkdown}</pre>
 			</div>
 		</div>
+	);
+}
+
+function CopyButton({
+	text,
+	showChinese,
+}: {
+	text: string;
+	showChinese: boolean;
+}) {
+	const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+
+	async function handleCopy() {
+		try {
+			await navigator.clipboard.writeText(text);
+			setState("copied");
+			window.setTimeout(() => setState("idle"), 1600);
+		} catch {
+			setState("failed");
+			window.setTimeout(() => setState("idle"), 2200);
+		}
+	}
+
+	return (
+		<button className="copy-button" type="button" onClick={handleCopy}>
+			{state === "copied" && (showChinese ? "已复制" : "Copied")}
+			{state === "failed" && (showChinese ? "复制失败" : "Copy failed")}
+			{state === "idle" && (showChinese ? "复制" : "Copy")}
+		</button>
 	);
 }
 
@@ -644,6 +830,52 @@ function displayConfidence(value: string, chinese: boolean) {
 		low: "低置信",
 	};
 	return map[value] || value;
+}
+
+function displayReviewMode(value: string, chinese: boolean) {
+	if (!chinese) return value;
+	const map: Record<string, string> = {
+		fast: "快速",
+		standard: "标准",
+		deep: "深度",
+	};
+	return map[value] || value;
+}
+
+function displayReviewSkill(value: ReviewSkill, chinese: boolean) {
+	if (!chinese) {
+		const map: Record<ReviewSkill, string> = {
+			security: "Security",
+			test: "Tests",
+			maintainability: "Maintainability",
+			performance: "Performance",
+			frontend: "Frontend",
+			backend: "Backend",
+		};
+		return map[value];
+	}
+
+	const map: Record<ReviewSkill, string> = {
+		security: "安全",
+		test: "测试",
+		maintainability: "可维护性",
+		performance: "性能",
+		frontend: "前端",
+		backend: "后端",
+	};
+	return map[value];
+}
+
+function displayReviewSkillDescription(value: ReviewSkill) {
+	const map: Record<ReviewSkill, string> = {
+		security: "Secrets, injection, auth boundaries",
+		test: "Missing tests, edge cases, regression risk",
+		maintainability: "Complexity, duplication, module boundaries",
+		performance: "N+1, repeated work, rendering cost",
+		frontend: "React state, UI behavior, accessibility",
+		backend: "API contracts, errors, data consistency",
+	};
+	return map[value];
 }
 
 function displayContextStatus(value: string, chinese: boolean) {

@@ -43,7 +43,10 @@ const server = http.createServer(async (req, res) => {
 
 		try {
 			rejectClientCredentials(body);
-			const review = await generateAiReview(body.report);
+			const review = await generateAiReview(body.report, {
+				mode: body.mode,
+				skills: body.skills,
+			});
 			sendJson(res, 200, {
 				ok: true,
 				review,
