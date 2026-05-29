@@ -5,6 +5,8 @@ type PrInputPanelProps = {
 	value: string;
 	loading: boolean;
 	status: AnalyzeStatus;
+	showChinese: boolean;
+	onLanguageChange: (value: boolean) => void;
 	onChange: (value: string) => void;
 	onSubmit: () => void;
 };
@@ -15,6 +17,8 @@ export function PrInputPanel({
 	value,
 	loading,
 	status,
+	showChinese,
+	onLanguageChange,
 	onChange,
 	onSubmit,
 }: PrInputPanelProps) {
@@ -35,7 +39,19 @@ export function PrInputPanel({
 			</div>
 
 			<form className="scan-panel" onSubmit={handleSubmit}>
-				<label htmlFor="pr-url">GitHub PR URL</label>
+				<div className="scan-panel-head">
+					<label htmlFor="pr-url">
+						{showChinese ? "GitHub PR 链接" : "GitHub PR URL"}
+					</label>
+					<label className="toggle-row">
+						<input
+							type="checkbox"
+							checked={showChinese}
+							onChange={(event) => onLanguageChange(event.target.checked)}
+						/>
+						<span>中文展示</span>
+					</label>
+				</div>
 				<div className="field-row">
 					<input
 						id="pr-url"

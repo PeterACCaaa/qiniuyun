@@ -1,12 +1,25 @@
+import {
+	displayCategory,
+	displayFinding,
+	displayRiskOverview,
+	displaySeverity,
+	displaySummary,
+} from "../lib/display-i18n";
 import type { ChangedFile, ReviewFinding, ReviewReport } from "../types/review";
 
 type ReportPreviewProps = {
 	report: ReviewReport | null;
 	error: string;
 	loading: boolean;
+	showChinese: boolean;
 };
 
-export function ReportPreview({ report, error, loading }: ReportPreviewProps) {
+export function ReportPreview({
+	report,
+	error,
+	loading,
+	showChinese,
+}: ReportPreviewProps) {
 	if (error) {
 		return (
 			<section className="panel empty-state error-state">
@@ -45,7 +58,7 @@ export function ReportPreview({ report, error, loading }: ReportPreviewProps) {
 				<h2>{report.pr.title}</h2>
 				<div className="meta-grid">
 					<span>作者：{report.pr.author}</span>
-					<span>状态：{report.pr.state}</span>
+					<span>状态：{displayPrState(report.pr.state, showChinese)}</span>
 					<span>
 						分支：{report.pr.headBranch} → {report.pr.baseBranch}
 					</span>
@@ -54,46 +67,67 @@ export function ReportPreview({ report, error, loading }: ReportPreviewProps) {
 			</section>
 
 			<section className="metric-grid">
-				<MetricCard label="Changed Files" value={report.pr.changedFiles} />
 				<MetricCard
-					label="Additions / Deletions"
+					label={showChinese ? "变更文件" : "Changed Files"}
+					value={report.pr.changedFiles}
+				/>
+				<MetricCard
+					label={showChinese ? "新增 / 删除" : "Additions / Deletions"}
 					value={`+${report.pr.additions} / -${report.pr.deletions}`}
 				/>
-				<MetricCard label="Risk Signals" value={totalRisk} />
-				<MetricCard label="Highest Severity" value={highestSeverity} />
+				<MetricCard
+					label={showChinese ? "风险信号" : "Risk Signals"}
+					value={totalRisk}
+				/>
+				<MetricCard
+					label={showChinese ? "最高风险等级" : "Highest Severity"}
+					value={displaySeverity(highestSeverity, showChinese)}
+				/>
 			</section>
 
 			<section className="dashboard-grid">
 				<div className="panel risk-visual reveal">
 					<div className="section-title">风险分布</div>
-					<RiskDonut report={report} />
-					<p className="body-text">{report.riskOverview}</p>
+					<RiskDonut report={report} showChinese={showChinese} />
+					<p className="body-text">
+						{displayRiskOverview(report.riskOverview, showChinese)}
+					</p>
 				</div>
 
 				<div className="panel summary-card reveal">
 					<div className="section-title">变更总结</div>
-					<p className="body-text">{report.summary}</p>
+					<p className="body-text">{displaySummary(report.summary, showChinese)}</p>
 				</div>
 			</section>
 
 			<section className="panel files-panel reveal">
 				<div className="section-title">
-					<span>Changed Files</span>
-					<span>{report.changedFiles.length} files</span>
+					<span>{showChinese ? "变更文件" : "Changed Files"}</span>
+					<span>
+						{showChinese
+							? `${report.changedFiles.length} 个文件`
+							: `${report.changedFiles.length} files`}
+					</span>
 				</div>
 				<div className="file-list">
 					{report.changedFiles.map((file) => (
-						<ChangedFileRow key={file.filename} file={file} />
+						<ChangedFileRow key={file.filename} file={file} showChinese={showChinese} />
 					))}
 				</div>
 			</section>
 
 			<section className="panel findings-panel reveal">
-				<div className="section-title">Review Priorities</div>
+				<div className="section-title">
+					{showChinese ? "Review 优先级" : "Review Priorities"}
+				</div>
 				{report.findings.length ? (
 					<div className="finding-list">
 						{report.findings.map((finding) => (
-							<FindingCard key={finding.id} finding={finding} />
+							<FindingCard
+								key={finding.id}
+								finding={finding}
+								showChinese={showChinese}
+							/>
 						))}
 					</div>
 				) : (
@@ -104,7 +138,9 @@ export function ReportPreview({ report, error, loading }: ReportPreviewProps) {
 			</section>
 
 			<section className="panel markdown-panel reveal">
-				<div className="section-title">Markdown 输出</div>
+				<div className="section-title">
+					{showChinese ? "Markdown 输出" : "Markdown Output"}
+				</div>
 				<pre>{report.markdown}</pre>
 			</section>
 		</div>
@@ -132,7 +168,13 @@ function MetricCard({ label, value }: { label: string; value: string | number })
 	);
 }
 
-function RiskDonut({ report }: { report: ReviewReport }) {
+function RiskDonut({
+	report,
+	showChinese,
+}: {
+	report: ReviewReport;
+	showChinese: boolean;
+}) {
 	const total =
 		report.riskCounts.blocking +
 		report.riskCounts.warning +
@@ -151,15 +193,23 @@ function RiskDonut({ report }: { report: ReviewReport }) {
 			<div className="risk-donut" style={{ background: gradient }}>
 				<div>
 					<strong>{total}</strong>
-					<span>signals</span>
+					<span>{showChinese ? "风险" : "signals"}</span>
 				</div>
 			</div>
 			<div className="risk-legend">
-				<LegendItem color="blocking" label="blocking" value={report.riskCounts.blocking} />
-				<LegendItem color="warning" label="warning" value={report.riskCounts.warning} />
+				<LegendItem
+					color="blocking"
+					label={displaySeverity("blocking", showChinese)}
+					value={report.riskCounts.blocking}
+				/>
+				<LegendItem
+					color="warning"
+					label={displaySeverity("warning", showChinese)}
+					value={report.riskCounts.warning}
+				/>
 				<LegendItem
 					color="suggestion"
-					label="suggestion"
+					label={displaySeverity("suggestion", showChinese)}
 					value={report.riskCounts.suggestion}
 				/>
 			</div>
@@ -185,7 +235,13 @@ function LegendItem({
 	);
 }
 
-function ChangedFileRow({ file }: { file: ChangedFile }) {
+function ChangedFileRow({
+	file,
+	showChinese,
+}: {
+	file: ChangedFile;
+	showChinese: boolean;
+}) {
 	const total = Math.max(file.additions + file.deletions, 1);
 	const addWidth = `${(file.additions / total) * 100}%`;
 	const delWidth = `${(file.deletions / total) * 100}%`;
@@ -196,12 +252,16 @@ function ChangedFileRow({ file }: { file: ChangedFile }) {
 				<a href={file.blobUrl || file.rawUrl} target="_blank" rel="noreferrer">
 					{file.filename}
 				</a>
-				<span className={`file-status status-${file.status}`}>{file.status}</span>
+				<span className={`file-status status-${file.status}`}>
+					{displayFileStatus(file.status, showChinese)}
+				</span>
 			</div>
 			<div className="changed-file-stats">
 				<span className="additions">+{file.additions}</span>
 				<span className="deletions">-{file.deletions}</span>
-				<span>{file.changes} changes</span>
+				<span>
+					{showChinese ? `${file.changes} 行变更` : `${file.changes} changes`}
+				</span>
 			</div>
 			<div className="change-bar" aria-hidden="true">
 				<span className="change-add" style={{ width: addWidth }} />
@@ -212,27 +272,45 @@ function ChangedFileRow({ file }: { file: ChangedFile }) {
 	);
 }
 
-function FindingCard({ finding }: { finding: ReviewFinding }) {
+function FindingCard({
+	finding,
+	showChinese,
+}: {
+	finding: ReviewFinding;
+	showChinese: boolean;
+}) {
+	const item = displayFinding(finding, showChinese);
+	const severity = showChinese ? item.severity : finding.severity;
+	const category = showChinese
+		? item.category
+		: displayCategory(finding.category, false);
+
 	return (
 		<article className={`finding finding-${finding.severity}`}>
 			<div className="finding-head">
 				<div>
-					<strong>{finding.title}</strong>
+					<strong>{item.title}</strong>
 					<p className="file-line">
 						{finding.file}:{finding.lineHint}
 					</p>
 				</div>
 				<div className="finding-tags">
-					<span>{finding.severity}</span>
-					<span>{finding.category}</span>
-					<span>{finding.confidence}</span>
+					<span>{severity}</span>
+					<span>{category}</span>
+					<span>{item.confidence}</span>
 				</div>
 			</div>
 			<div className="finding-detail">
-				<DetailRow label="Evidence" value={finding.evidence} />
-				<DetailRow label="Impact" value={finding.impact} />
-				<DetailRow label="Suggestion" value={finding.suggestion} />
-				<DetailRow label="Verify" value={finding.howToVerify} />
+				<DetailRow label={showChinese ? "证据" : "Evidence"} value={item.evidence} />
+				<DetailRow label={showChinese ? "影响" : "Impact"} value={item.impact} />
+				<DetailRow
+					label={showChinese ? "建议" : "Suggestion"}
+					value={item.suggestion}
+				/>
+				<DetailRow
+					label={showChinese ? "复核" : "Verify"}
+					value={item.howToVerify}
+				/>
 			</div>
 		</article>
 	);
@@ -252,6 +330,27 @@ function getHighestSeverity(report: ReviewReport) {
 	if (report.riskCounts.warning) return "warning";
 	if (report.riskCounts.suggestion) return "suggestion";
 	return "clear";
+}
+
+function displayPrState(value: string, chinese: boolean) {
+	if (!chinese) return value;
+	const map: Record<string, string> = {
+		open: "打开",
+		closed: "已关闭",
+		merged: "已合并",
+	};
+	return map[value] || value;
+}
+
+function displayFileStatus(value: string, chinese: boolean) {
+	if (!chinese) return value;
+	const map: Record<string, string> = {
+		added: "新增",
+		modified: "修改",
+		removed: "删除",
+		renamed: "重命名",
+	};
+	return map[value] || value;
 }
 
 function firstPatchLine(patch: string) {

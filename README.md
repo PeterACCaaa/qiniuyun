@@ -38,7 +38,7 @@ npm run dev
 访问 Vite 输出的本地地址，输入真实 GitHub PR 链接：
 
 ```txt
-https://github.com/microsoft/TypeScript/pull/63513
+https://github.com/PeterACCaaa/pr/pull/1
 ```
 
 ## 环境变量

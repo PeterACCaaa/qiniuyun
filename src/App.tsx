@@ -4,13 +4,14 @@ import { ReportPreview } from "./components/ReportPreview";
 import { analyzePullRequest } from "./lib/review-client";
 import type { AnalyzeStatus, ReviewReport } from "./types/review";
 
-const SAMPLE_PR_URL = "https://github.com/microsoft/TypeScript/pull/63513";
+const SAMPLE_PR_URL = "https://github.com/PeterACCaaa/pr/pull/1";
 
 export function App() {
 	const [prUrl, setPrUrl] = useState(SAMPLE_PR_URL);
 	const [status, setStatus] = useState<AnalyzeStatus>("idle");
 	const [report, setReport] = useState<ReviewReport | null>(null);
 	const [error, setError] = useState("");
+	const [showChinese, setShowChinese] = useState(false);
 
 	async function handleAnalyze() {
 		const trimmedUrl = prUrl.trim();
@@ -36,6 +37,8 @@ export function App() {
 				value={prUrl}
 				loading={status === "loading"}
 				status={status}
+				showChinese={showChinese}
+				onLanguageChange={setShowChinese}
 				onChange={setPrUrl}
 				onSubmit={handleAnalyze}
 			/>
@@ -50,7 +53,12 @@ export function App() {
 				</span>
 			</div>
 
-			<ReportPreview report={report} error={error} loading={status === "loading"} />
+			<ReportPreview
+				report={report}
+				error={error}
+				loading={status === "loading"}
+				showChinese={showChinese}
+			/>
 		</main>
 	);
 }
