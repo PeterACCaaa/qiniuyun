@@ -1,5 +1,6 @@
 import http from "node:http";
-import { createMockReport } from "./mock-report.mjs";
+import { fetchPullRequestSnapshot } from "./github-client.mjs";
+import { buildPullRequestReport } from "./report-builder.mjs";
 
 const PORT = Number(process.env.API_PORT || 8787);
 
@@ -13,18 +14,18 @@ const server = http.createServer(async (req, res) => {
 		const body = await readJson(req);
 		const prUrl = typeof body.prUrl === "string" ? body.prUrl.trim() : "";
 
-		if (!isGithubPullRequestUrl(prUrl)) {
-			sendJson(res, 400, {
-				ok: false,
-				error: "请输入有效的 GitHub PR 链接，例如 https://github.com/owner/repo/pull/123",
+		try {
+			const snapshot = await fetchPullRequestSnapshot(prUrl);
+			sendJson(res, 200, {
+				ok: true,
+				report: buildPullRequestReport(snapshot),
 			});
-			return;
+		} catch (error) {
+			sendJson(res, error.statusCode || 500, {
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+			});
 		}
-
-		sendJson(res, 200, {
-			ok: true,
-			report: createMockReport(prUrl),
-		});
 		return;
 	}
 
@@ -35,7 +36,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-	console.log(`Mock API server listening on http://localhost:${PORT}`);
+	console.log(`API server listening on http://localhost:${PORT}`);
 });
 
 function sendJson(res, statusCode, payload) {
@@ -68,8 +69,4 @@ function readJson(req) {
 			}
 		});
 	});
-}
-
-function isGithubPullRequestUrl(value) {
-	return /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/pull\/\d+\/?$/i.test(value);
 }

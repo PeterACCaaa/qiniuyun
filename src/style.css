@@ -184,6 +184,7 @@ h2 {
 }
 
 .pr-card,
+.files-panel,
 .findings-panel,
 .markdown-panel {
 	grid-column: 1 / -1;
@@ -208,6 +209,93 @@ h2 {
 	margin-bottom: 0;
 	color: #35433f;
 	line-height: 1.75;
+}
+
+.file-list {
+	display: grid;
+	gap: 10px;
+}
+
+.changed-file {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px 16px;
+	align-items: center;
+	border: 1px solid #e4ebe5;
+	border-radius: 6px;
+	padding: 12px 14px;
+	background: #fbfdfb;
+}
+
+.changed-file-main {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 10px;
+}
+
+.changed-file-main a {
+	overflow: hidden;
+	color: #182024;
+	font-family: "Cascadia Code", Consolas, monospace;
+	font-size: 14px;
+	font-weight: 700;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.file-status {
+	flex: 0 0 auto;
+	border-radius: 999px;
+	padding: 2px 8px;
+	background: #e9efeb;
+	color: #52615d;
+	font-size: 12px;
+}
+
+.status-added {
+	background: #e4f4e8;
+	color: #177245;
+}
+
+.status-removed {
+	background: #fde9e6;
+	color: #a53528;
+}
+
+.status-renamed {
+	background: #eef0ff;
+	color: #4b54a3;
+}
+
+.changed-file-stats {
+	display: flex;
+	gap: 10px;
+	color: #65736e;
+	font-size: 13px;
+}
+
+.additions {
+	color: #177245;
+}
+
+.deletions {
+	color: #a53528;
+}
+
+.changed-file code {
+	grid-column: 1 / -1;
+	width: fit-content;
+	max-width: 100%;
+	overflow: hidden;
+	border-radius: 5px;
+	padding: 4px 8px;
+	background: #eef3ef;
+	color: #52615d;
+	font-family: "Cascadia Code", Consolas, monospace;
+	font-size: 12px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .empty-state {
@@ -297,7 +385,8 @@ h2 {
 
 	.input-panel,
 	.report-grid,
-	.meta-grid {
+	.meta-grid,
+	.changed-file {
 		grid-template-columns: 1fr;
 	}
 

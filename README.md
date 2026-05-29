@@ -1,14 +1,15 @@
 # AI PR Review Assistant
 
-七牛云 XEngineer 第二批次题目三的 MVP 骨架：AI PR Review 助手。
+七牛云 XEngineer 第二批次题目三的 MVP：AI PR Review 助手。
 
-当前阶段只完成基础框架：
+当前已完成第一个真实功能切片：
 
-- Vite + React + TypeScript 单页应用
-- PR URL 输入区
-- Review 报告展示区
-- 本地 mock API：`POST /api/analyze-pr`
-- 后续 GitHub API、规则扫描、AI 分析模块的目录边界
+- 输入 GitHub PR URL
+- 后端解析 owner / repo / pullNumber
+- 调 GitHub REST API 拉取 PR metadata
+- 调 GitHub REST API 拉取 changed files
+- 前端展示真实 PR 概览和文件变更列表
+- Review 建议区暂时保留为空，下一步接规则扫描
 
 ## 启动
 
@@ -18,7 +19,7 @@
 npm install
 ```
 
-启动 mock API：
+启动 API：
 
 ```bash
 npm run api
@@ -30,7 +31,11 @@ npm run api
 npm run dev
 ```
 
-访问 Vite 输出的本地地址，输入 GitHub PR 链接即可看到 mock 报告。
+访问 Vite 输出的本地地址，输入真实 GitHub PR 链接：
+
+```txt
+https://github.com/facebook/react/pull/32257
+```
 
 ## 环境变量
 
@@ -44,10 +49,32 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-5-mini
 ```
 
+公开仓库可以不配置 `GITHUB_TOKEN`，但容易遇到 GitHub API rate limit。私有仓库必须配置有权限的 token。
+
+## 当前 API
+
+```txt
+POST /api/analyze-pr
+```
+
+请求：
+
+```json
+{
+  "prUrl": "https://github.com/owner/repo/pull/123"
+}
+```
+
+响应会返回：
+
+- PR 标题、作者、状态、base/head 分支
+- changed files 数量
+- additions / deletions
+- 每个变更文件的 filename、status、additions、deletions、changes、patch 摘要
+
 ## 下一步实现顺序
 
-1. 解析 GitHub PR URL，提取 owner、repo、pullNumber。
-2. 接 GitHub REST API，拉取 PR metadata 和 changed files。
-3. 做规则扫描器，输出确定性风险。
-4. 接 AI 模型，生成结构化 Review 报告。
-5. 支持复制 Markdown 和模拟提交 Review。
+1. 基于 changed files 做规则扫描。
+2. 识别认证、权限、配置、依赖、测试删除等高风险变更。
+3. 将 PR 上下文和规则扫描结果交给 AI 生成 Review 建议。
+4. 支持复制 Markdown 和模拟提交 Review。

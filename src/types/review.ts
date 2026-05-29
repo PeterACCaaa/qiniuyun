@@ -11,6 +11,20 @@ export type PullRequestInfo = {
 	changedFiles: number;
 	additions: number;
 	deletions: number;
+	state: string;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type ChangedFile = {
+	filename: string;
+	status: string;
+	additions: number;
+	deletions: number;
+	changes: number;
+	patch: string;
+	rawUrl: string;
+	blobUrl: string;
 };
 
 export type ReviewFinding = {
@@ -26,6 +40,7 @@ export type ReviewFinding = {
 
 export type ReviewReport = {
 	pr: PullRequestInfo;
+	changedFiles: ChangedFile[];
 	summary: string;
 	riskOverview: string;
 	findings: ReviewFinding[];
