@@ -3,9 +3,10 @@ import type { ChangedFile, ReviewFinding, ReviewReport } from "../types/review";
 type ReportPreviewProps = {
 	report: ReviewReport | null;
 	error: string;
+	loading: boolean;
 };
 
-export function ReportPreview({ report, error }: ReportPreviewProps) {
+export function ReportPreview({ report, error, loading }: ReportPreviewProps) {
 	if (error) {
 		return (
 			<section className="panel empty-state error-state">
@@ -14,6 +15,8 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 			</section>
 		);
 	}
+
+	if (loading) return <ScanningState />;
 
 	if (!report) {
 		return (
@@ -24,9 +27,15 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 		);
 	}
 
+	const totalRisk =
+		report.riskCounts.blocking +
+		report.riskCounts.warning +
+		report.riskCounts.suggestion;
+	const highestSeverity = getHighestSeverity(report);
+
 	return (
-		<div className="report-grid">
-			<section className="panel pr-card">
+		<div className="report-workspace">
+			<section className="panel pr-card reveal">
 				<div className="section-title">
 					<span>PR 概览</span>
 					<a href={report.pr.url} target="_blank" rel="noreferrer">
@@ -40,32 +49,34 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 					<span>
 						分支：{report.pr.headBranch} → {report.pr.baseBranch}
 					</span>
-					<span>文件：{report.pr.changedFiles}</span>
-					<span>
-						变更：+{report.pr.additions} / -{report.pr.deletions}
-					</span>
 					<span>更新：{formatDate(report.pr.updatedAt)}</span>
 				</div>
 			</section>
 
-			<section className="panel">
-				<div className="section-title">变更总结</div>
-				<p className="body-text">{report.summary}</p>
+			<section className="metric-grid">
+				<MetricCard label="Changed Files" value={report.pr.changedFiles} />
+				<MetricCard
+					label="Additions / Deletions"
+					value={`+${report.pr.additions} / -${report.pr.deletions}`}
+				/>
+				<MetricCard label="Risk Signals" value={totalRisk} />
+				<MetricCard label="Highest Severity" value={highestSeverity} />
 			</section>
 
-			<section className="panel">
-				<div className="section-title">风险地图</div>
-				<div className="risk-counts">
-					<span className="risk-count blocking">{report.riskCounts.blocking} blocking</span>
-					<span className="risk-count warning">{report.riskCounts.warning} warning</span>
-					<span className="risk-count suggestion">
-						{report.riskCounts.suggestion} suggestion
-					</span>
+			<section className="dashboard-grid">
+				<div className="panel risk-visual reveal">
+					<div className="section-title">风险分布</div>
+					<RiskDonut report={report} />
+					<p className="body-text">{report.riskOverview}</p>
 				</div>
-				<p className="body-text">{report.riskOverview}</p>
+
+				<div className="panel summary-card reveal">
+					<div className="section-title">变更总结</div>
+					<p className="body-text">{report.summary}</p>
+				</div>
 			</section>
 
-			<section className="panel files-panel">
+			<section className="panel files-panel reveal">
 				<div className="section-title">
 					<span>Changed Files</span>
 					<span>{report.changedFiles.length} files</span>
@@ -77,7 +88,7 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 				</div>
 			</section>
 
-			<section className="panel findings-panel">
+			<section className="panel findings-panel reveal">
 				<div className="section-title">Review Priorities</div>
 				{report.findings.length ? (
 					<div className="finding-list">
@@ -92,7 +103,7 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 				)}
 			</section>
 
-			<section className="panel markdown-panel">
+			<section className="panel markdown-panel reveal">
 				<div className="section-title">Markdown 输出</div>
 				<pre>{report.markdown}</pre>
 			</section>
@@ -100,7 +111,85 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 	);
 }
 
+function ScanningState() {
+	return (
+		<section className="panel scanning-state">
+			<div className="scanner-orbit" />
+			<div>
+				<h2>正在生成风险地图</h2>
+				<p>拉取 PR 元信息、读取 changed files，并执行确定性规则扫描。</p>
+			</div>
+		</section>
+	);
+}
+
+function MetricCard({ label, value }: { label: string; value: string | number }) {
+	return (
+		<article className="metric-card reveal">
+			<span>{label}</span>
+			<strong>{value}</strong>
+		</article>
+	);
+}
+
+function RiskDonut({ report }: { report: ReviewReport }) {
+	const total =
+		report.riskCounts.blocking +
+		report.riskCounts.warning +
+		report.riskCounts.suggestion;
+	const blocking = total ? (report.riskCounts.blocking / total) * 100 : 0;
+	const warning = total ? (report.riskCounts.warning / total) * 100 : 0;
+	const suggestion = total ? (report.riskCounts.suggestion / total) * 100 : 0;
+	const gradient = total
+		? `conic-gradient(#bd3b3b 0 ${blocking}%, #d99b25 ${blocking}% ${
+				blocking + warning
+			}%, #1f7a6d ${blocking + warning}% ${blocking + warning + suggestion}%)`
+		: "conic-gradient(#dce3dc 0 100%)";
+
+	return (
+		<div className="risk-donut-wrap">
+			<div className="risk-donut" style={{ background: gradient }}>
+				<div>
+					<strong>{total}</strong>
+					<span>signals</span>
+				</div>
+			</div>
+			<div className="risk-legend">
+				<LegendItem color="blocking" label="blocking" value={report.riskCounts.blocking} />
+				<LegendItem color="warning" label="warning" value={report.riskCounts.warning} />
+				<LegendItem
+					color="suggestion"
+					label="suggestion"
+					value={report.riskCounts.suggestion}
+				/>
+			</div>
+		</div>
+	);
+}
+
+function LegendItem({
+	color,
+	label,
+	value,
+}: {
+	color: string;
+	label: string;
+	value: number;
+}) {
+	return (
+		<div className="legend-item">
+			<span className={`legend-dot ${color}`} />
+			<p>{label}</p>
+			<strong>{value}</strong>
+		</div>
+	);
+}
+
 function ChangedFileRow({ file }: { file: ChangedFile }) {
+	const total = Math.max(file.additions + file.deletions, 1);
+	const addWidth = `${(file.additions / total) * 100}%`;
+	const delWidth = `${(file.deletions / total) * 100}%`;
+
 	return (
 		<article className="changed-file">
 			<div className="changed-file-main">
@@ -113,6 +202,10 @@ function ChangedFileRow({ file }: { file: ChangedFile }) {
 				<span className="additions">+{file.additions}</span>
 				<span className="deletions">-{file.deletions}</span>
 				<span>{file.changes} changes</span>
+			</div>
+			<div className="change-bar" aria-hidden="true">
+				<span className="change-add" style={{ width: addWidth }} />
+				<span className="change-del" style={{ width: delWidth }} />
 			</div>
 			{file.patch && <code>{firstPatchLine(file.patch)}</code>}
 		</article>
@@ -152,6 +245,13 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 			<p>{value}</p>
 		</div>
 	);
+}
+
+function getHighestSeverity(report: ReviewReport) {
+	if (report.riskCounts.blocking) return "blocking";
+	if (report.riskCounts.warning) return "warning";
+	if (report.riskCounts.suggestion) return "suggestion";
+	return "clear";
 }
 
 function firstPatchLine(patch: string) {
