@@ -211,6 +211,35 @@ h2 {
 	line-height: 1.75;
 }
 
+.risk-counts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.risk-count {
+	border-radius: 999px;
+	padding: 5px 10px;
+	font-size: 12px;
+	font-weight: 800;
+}
+
+.risk-count.blocking {
+	background: #fde9e6;
+	color: #a53528;
+}
+
+.risk-count.warning {
+	background: #fff4d9;
+	color: #8a5a00;
+}
+
+.risk-count.suggestion {
+	background: #e4f4e8;
+	color: #177245;
+}
+
 .file-list {
 	display: grid;
 	gap: 10px;
@@ -343,7 +372,14 @@ h2 {
 	gap: 12px;
 }
 
-.finding-head span {
+.finding-tags {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 6px;
+}
+
+.finding-tags span {
 	border-radius: 999px;
 	padding: 2px 8px;
 	background: #e9efeb;
@@ -358,9 +394,29 @@ h2 {
 	font-size: 13px;
 }
 
-.suggestion {
-	margin-bottom: 6px;
-	font-weight: 700;
+.finding-detail {
+	display: grid;
+	gap: 10px;
+	margin-top: 12px;
+}
+
+.finding-detail-row {
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr);
+	gap: 12px;
+}
+
+.finding-detail-row span {
+	color: #65736e;
+	font-size: 12px;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.finding-detail-row p {
+	margin: 0;
+	color: #35433f;
+	line-height: 1.6;
 }
 
 .markdown-panel pre {
@@ -386,8 +442,17 @@ h2 {
 	.input-panel,
 	.report-grid,
 	.meta-grid,
-	.changed-file {
+	.changed-file,
+	.finding-detail-row {
 		grid-template-columns: 1fr;
+	}
+
+	.finding-head {
+		flex-direction: column;
+	}
+
+	.finding-tags {
+		justify-content: flex-start;
 	}
 
 	.input-panel {

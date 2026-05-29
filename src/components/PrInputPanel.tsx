@@ -24,8 +24,8 @@ export function PrInputPanel({
 				<p className="eyebrow">AI PR Review Assistant</p>
 				<h1>把 Pull Request 变成可行动的 Review 报告</h1>
 				<p className="lead">
-					输入 GitHub PR 链接，后续将自动拉取变更、识别风险并生成 Review 建议。
-					当前版本先搭好交互骨架，API 使用 mock 数据占位。
+					输入 GitHub PR 链接，系统会拉取真实变更文件并执行规则扫描，
+					先给出确定性风险信号，再为后续 AI Review 提供上下文。
 				</p>
 			</div>
 

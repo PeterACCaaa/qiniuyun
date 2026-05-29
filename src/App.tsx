@@ -4,7 +4,7 @@ import { ReportPreview } from "./components/ReportPreview";
 import { analyzePullRequest } from "./lib/review-client";
 import type { AnalyzeStatus, ReviewReport } from "./types/review";
 
-const SAMPLE_PR_URL = "https://github.com/qiniu/kodo-browser/pull/123";
+const SAMPLE_PR_URL = "https://github.com/microsoft/TypeScript/pull/63513";
 
 export function App() {
 	const [prUrl, setPrUrl] = useState(SAMPLE_PR_URL);
@@ -43,7 +43,7 @@ export function App() {
 				<span className={`status-dot status-${status}`} />
 				<span>
 					{status === "idle" && "准备就绪"}
-					{status === "loading" && "正在生成 mock Review 报告"}
+					{status === "loading" && "正在拉取 PR 并执行规则扫描"}
 					{status === "success" && "报告已生成"}
 					{status === "error" && "需要检查输入或 API"}
 				</span>

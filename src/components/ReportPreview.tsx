@@ -19,7 +19,7 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 		return (
 			<section className="panel empty-state">
 				<h2>等待输入 PR</h2>
-				<p>报告区会展示真实 PR 概览、文件变更、后续风险分析和 Markdown 输出。</p>
+				<p>报告区会展示真实 PR 概览、文件变更、风险地图和 Markdown 输出。</p>
 			</section>
 		);
 	}
@@ -54,7 +54,14 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 			</section>
 
 			<section className="panel">
-				<div className="section-title">风险分析状态</div>
+				<div className="section-title">风险地图</div>
+				<div className="risk-counts">
+					<span className="risk-count blocking">{report.riskCounts.blocking} blocking</span>
+					<span className="risk-count warning">{report.riskCounts.warning} warning</span>
+					<span className="risk-count suggestion">
+						{report.riskCounts.suggestion} suggestion
+					</span>
+				</div>
 				<p className="body-text">{report.riskOverview}</p>
 			</section>
 
@@ -71,7 +78,7 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 			</section>
 
 			<section className="panel findings-panel">
-				<div className="section-title">Review 建议</div>
+				<div className="section-title">Review Priorities</div>
 				{report.findings.length ? (
 					<div className="finding-list">
 						{report.findings.map((finding) => (
@@ -80,7 +87,7 @@ export function ReportPreview({ report, error }: ReportPreviewProps) {
 					</div>
 				) : (
 					<p className="body-text">
-						当前切片只拉取真实 PR 数据。下一步接入规则扫描后，这里会展示文件级风险建议。
+						风险地图没有发现明显确定性风险。下一步 AI 分析会继续检查语义层面的问题。
 					</p>
 				)}
 			</section>
@@ -116,16 +123,34 @@ function FindingCard({ finding }: { finding: ReviewFinding }) {
 	return (
 		<article className={`finding finding-${finding.severity}`}>
 			<div className="finding-head">
-				<strong>{finding.title}</strong>
-				<span>{finding.severity}</span>
+				<div>
+					<strong>{finding.title}</strong>
+					<p className="file-line">
+						{finding.file}:{finding.lineHint}
+					</p>
+				</div>
+				<div className="finding-tags">
+					<span>{finding.severity}</span>
+					<span>{finding.category}</span>
+					<span>{finding.confidence}</span>
+				</div>
 			</div>
-			<p className="file-line">
-				{finding.file}:{finding.lineHint}
-			</p>
-			<p>{finding.reason}</p>
-			<p className="suggestion">{finding.suggestion}</p>
-			<small>confidence: {finding.confidence}</small>
+			<div className="finding-detail">
+				<DetailRow label="Evidence" value={finding.evidence} />
+				<DetailRow label="Impact" value={finding.impact} />
+				<DetailRow label="Suggestion" value={finding.suggestion} />
+				<DetailRow label="Verify" value={finding.howToVerify} />
+			</div>
 		</article>
+	);
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="finding-detail-row">
+			<span>{label}</span>
+			<p>{value}</p>
+		</div>
 	);
 }
 

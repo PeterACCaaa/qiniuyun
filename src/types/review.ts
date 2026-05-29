@@ -1,6 +1,15 @@
 export type AnalyzeStatus = "idle" | "loading" | "success" | "error";
 
 export type ReviewSeverity = "blocking" | "warning" | "suggestion";
+export type RiskCategory =
+	| "security"
+	| "auth"
+	| "data"
+	| "dependency"
+	| "delivery"
+	| "test"
+	| "reviewability"
+	| "code-smell";
 
 export type PullRequestInfo = {
 	title: string;
@@ -30,11 +39,14 @@ export type ChangedFile = {
 export type ReviewFinding = {
 	id: string;
 	severity: ReviewSeverity;
+	category: RiskCategory;
 	file: string;
 	lineHint: string;
 	title: string;
-	reason: string;
+	evidence: string;
+	impact: string;
 	suggestion: string;
+	howToVerify: string;
 	confidence: "high" | "medium" | "low";
 };
 
@@ -43,6 +55,7 @@ export type ReviewReport = {
 	changedFiles: ChangedFile[];
 	summary: string;
 	riskOverview: string;
+	riskCounts: Record<ReviewSeverity, number>;
 	findings: ReviewFinding[];
 	nextSteps: string[];
 	markdown: string;
