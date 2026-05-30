@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { PrInputPanel } from "./components/PrInputPanel";
 import { ReportPreview } from "./components/ReportPreview";
 import { analyzePullRequest, generateAiReview } from "./lib/review-client";
+import { useShellIntroAnimation } from "./lib/use-gsap-animations";
 import type {
 	AiReview,
 	AiReviewMode,
@@ -18,6 +19,7 @@ const DEFAULT_REVIEW_SKILLS: ReviewSkill[] = [
 ];
 
 export function App() {
+	const shellRef = useRef<HTMLElement | null>(null);
 	const [prUrl, setPrUrl] = useState(SAMPLE_PR_URL);
 	const [status, setStatus] = useState<AnalyzeStatus>("idle");
 	const [report, setReport] = useState<ReviewReport | null>(null);
@@ -29,6 +31,8 @@ export function App() {
 		useState<ReviewSkill[]>(DEFAULT_REVIEW_SKILLS);
 	const [error, setError] = useState("");
 	const [showChinese, setShowChinese] = useState(false);
+
+	useShellIntroAnimation(shellRef);
 
 	async function handleAnalyze() {
 		const trimmedUrl = prUrl.trim();
@@ -68,7 +72,7 @@ export function App() {
 	}
 
 	return (
-		<main className="app-shell">
+		<main className="app-shell" ref={shellRef}>
 			<PrInputPanel
 				value={prUrl}
 				loading={status === "loading"}

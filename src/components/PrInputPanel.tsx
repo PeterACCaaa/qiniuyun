@@ -1,4 +1,8 @@
-import type { FormEvent } from "react";
+import { useRef, type FormEvent } from "react";
+import {
+	useHeroPanelAnimation,
+	useScanStatusAnimation,
+} from "../lib/use-gsap-animations";
 import type { AnalyzeStatus } from "../types/review";
 
 type PrInputPanelProps = {
@@ -22,13 +26,18 @@ export function PrInputPanel({
 	onChange,
 	onSubmit,
 }: PrInputPanelProps) {
+	const panelRef = useRef<HTMLElement | null>(null);
+
+	useHeroPanelAnimation(panelRef);
+	useScanStatusAnimation(panelRef, status);
+
 	function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		onSubmit();
 	}
 
 	return (
-		<section className="hero-console">
+		<section className="hero-console" ref={panelRef}>
 			<div className="hero-copy">
 				<p className="eyebrow">AI PR Review Assistant</p>
 				<h1>把 Pull Request 变成风险地图</h1>

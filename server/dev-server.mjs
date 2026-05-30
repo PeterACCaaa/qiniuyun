@@ -1,7 +1,14 @@
 import http from "node:http";
+import { generateAiFollowup } from "./ai-followup.mjs";
 import { generateAiReview } from "./ai-reviewer.mjs";
 import { loadDotenv } from "./env-loader.mjs";
 import { enrichReportWithFileContexts } from "./file-context.mjs";
+import {
+	appendFollowupExchange,
+	getAiReviewContext,
+	getOrCreateFollowupThread,
+	saveAiReviewContext,
+} from "./followup-store.mjs";
 import { fetchPullRequestSnapshot } from "./github-client.mjs";
 import { buildPullRequestReport } from "./report-builder.mjs";
 
@@ -47,9 +54,49 @@ const server = http.createServer(async (req, res) => {
 				mode: body.mode,
 				skills: body.skills,
 			});
+			const context = saveAiReviewContext({
+				report: body.report,
+				review,
+				mode: body.mode,
+				skills: body.skills,
+			});
 			sendJson(res, 200, {
 				ok: true,
-				review,
+				review: {
+					...review,
+					resultId: context.resultId,
+				},
+			});
+		} catch (error) {
+			sendJson(res, error.statusCode || 500, {
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+		return;
+	}
+
+	if (req.method === "POST" && req.url === "/api/ai-followup") {
+		const body = await readJson(req);
+
+		try {
+			rejectClientCredentials(body);
+			const context = getAiReviewContext(body.resultId);
+			if (!context) {
+				const error = new Error("AI Review 上下文不存在或已过期，请重新生成 AI Review 后再追问。");
+				error.statusCode = 404;
+				throw error;
+			}
+
+			const thread = getOrCreateFollowupThread(context, body.threadId);
+			const answer = await generateAiFollowup(context, thread, body.question);
+			const messages = appendFollowupExchange(thread, body.question.trim(), answer);
+
+			sendJson(res, 200, {
+				ok: true,
+				threadId: thread.threadId,
+				answer,
+				messages,
 			});
 		} catch (error) {
 			sendJson(res, error.statusCode || 500, {

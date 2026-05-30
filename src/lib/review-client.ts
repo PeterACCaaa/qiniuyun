@@ -1,4 +1,5 @@
 import type {
+	AiFollowupResponse,
 	AiReviewMode,
 	AiReviewResponse,
 	AnalyzeResponse,
@@ -16,6 +17,28 @@ export async function analyzePullRequest(prUrl: string): Promise<AnalyzeResponse
 	});
 
 	const payload = (await response.json()) as AnalyzeResponse;
+	if (!response.ok && payload.ok === false) return payload;
+	return payload;
+}
+
+export async function askAiReviewFollowup({
+	resultId,
+	threadId,
+	question,
+}: {
+	resultId: string;
+	threadId?: string;
+	question: string;
+}): Promise<AiFollowupResponse> {
+	const response = await fetch("/api/ai-followup", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ resultId, threadId, question }),
+	});
+
+	const payload = (await response.json()) as AiFollowupResponse;
 	if (!response.ok && payload.ok === false) return payload;
 	return payload;
 }

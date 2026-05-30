@@ -75,7 +75,7 @@ OPENAI_TEXT_VERBOSITY=low
 `OPENAI_REASONING_EFFORT` 可选值为 `low`、`medium`、`high`、`xhigh`。其中 `xhigh` 是部分中转服务支持的扩展值，适合深度 Review。`OPENAI_TEXT_VERBOSITY` 可选值为 `low`、`medium`、`high`，不建议填 `xhigh`。
 
 安全边界：
-
+  
 - `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 只允许配置在服务端 `.env`
 - 前端不会读取、保存或传递任何模型 API Key
 - `/api/ai-review` 会拒绝客户端请求体中携带的 key、baseURL 或 model 字段

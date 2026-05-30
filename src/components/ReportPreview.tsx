@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
 	displayCategory,
 	displayFinding,
@@ -6,8 +6,15 @@ import {
 	displaySeverity,
 	displaySummary,
 } from "../lib/display-i18n";
+import { askAiReviewFollowup } from "../lib/review-client";
+import {
+	useAiReviewRevealAnimation,
+	useReportRevealAnimation,
+	useRiskDonutAnimation,
+} from "../lib/use-gsap-animations";
 import type {
 	AiReview,
+	AiFollowupMessage,
 	AiReviewMode,
 	AiReviewRisk,
 	ChangedFile,
@@ -47,6 +54,10 @@ export function ReportPreview({
 	onSkillsChange,
 	onGenerateAiReview,
 }: ReportPreviewProps) {
+	const workspaceRef = useRef<HTMLDivElement | null>(null);
+
+	useReportRevealAnimation(workspaceRef, report);
+
 	if (error) {
 		return (
 			<section className="panel empty-state error-state">
@@ -74,7 +85,7 @@ export function ReportPreview({
 	const highestSeverity = getHighestSeverity(report);
 
 	return (
-		<div className="report-workspace">
+		<div className="report-workspace" ref={workspaceRef}>
 			<section className="panel pr-card reveal">
 				<div className="section-title">
 					<span>PR 概览</span>
@@ -314,8 +325,12 @@ function AiReviewPanel({
 	onSkillsChange: (skills: ReviewSkill[]) => void;
 	onGenerate: () => void;
 }) {
+	const panelRef = useRef<HTMLElement | null>(null);
+
+	useAiReviewRevealAnimation(panelRef, review, loading);
+
 	return (
-		<section className="panel ai-panel reveal">
+		<section className="panel ai-panel reveal" ref={panelRef}>
 			<div className="section-title ai-panel-title">
 				<div>
 					<span>{showChinese ? "AI 深度 Review" : "AI Deep Review"}</span>
@@ -481,6 +496,16 @@ function AiReviewResult({
 	review: AiReview;
 	showChinese: boolean;
 }) {
+	const [followupOpen, setFollowupOpen] = useState(false);
+	const [followupThreadId, setFollowupThreadId] = useState<string | undefined>();
+	const [followupMessages, setFollowupMessages] = useState<AiFollowupMessage[]>([]);
+
+	useEffect(() => {
+		setFollowupOpen(false);
+		setFollowupThreadId(undefined);
+		setFollowupMessages([]);
+	}, [review.resultId]);
+
 	return (
 		<div className="ai-result">
 			<div className="ai-meta-grid">
@@ -509,7 +534,17 @@ function AiReviewResult({
 					))}
 				</div>
 			)}
-			<p className="body-text">{review.summary}</p>
+			<div className="ai-summary-row">
+				<p className="body-text">{review.summary}</p>
+				<button
+					className="secondary-button"
+					type="button"
+					disabled={!review.resultId}
+					onClick={() => setFollowupOpen(true)}
+				>
+					{showChinese ? "追问结论" : "Ask follow-up"}
+				</button>
+			</div>
 
 			<div className="ai-risk-list">
 				{review.keyRisks.map((risk, index) => (
@@ -541,6 +576,163 @@ function AiReviewResult({
 				</div>
 				<pre>{review.commentMarkdown}</pre>
 			</div>
+			{followupOpen && (
+				<AiFollowupDialog
+					review={review}
+					threadId={followupThreadId}
+					messages={followupMessages}
+					showChinese={showChinese}
+					onThreadIdChange={setFollowupThreadId}
+					onMessagesChange={setFollowupMessages}
+					onClose={() => setFollowupOpen(false)}
+				/>
+			)}
+		</div>
+	);
+}
+
+function AiFollowupDialog({
+	review,
+	threadId,
+	messages,
+	showChinese,
+	onThreadIdChange,
+	onMessagesChange,
+	onClose,
+}: {
+	review: AiReview;
+	threadId: string | undefined;
+	messages: AiFollowupMessage[];
+	showChinese: boolean;
+	onThreadIdChange: (threadId: string) => void;
+	onMessagesChange: (messages: AiFollowupMessage[]) => void;
+	onClose: () => void;
+}) {
+	const [question, setQuestion] = useState("");
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState("");
+
+	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		const trimmedQuestion = question.trim();
+		if (!trimmedQuestion || loading || !review.resultId) return;
+
+		setLoading(true);
+		setError("");
+		setQuestion("");
+
+		const optimisticMessage: AiFollowupMessage = {
+			id: `local-${Date.now()}`,
+			role: "user",
+			content: trimmedQuestion,
+			createdAt: new Date().toISOString(),
+		};
+		onMessagesChange([...messages, optimisticMessage]);
+
+		const result = await askAiReviewFollowup({
+			resultId: review.resultId,
+			threadId,
+			question: trimmedQuestion,
+		});
+
+		if (!result.ok) {
+			setError(result.error);
+			setLoading(false);
+			return;
+		}
+
+		onThreadIdChange(result.threadId);
+		onMessagesChange(result.messages);
+		setLoading(false);
+	}
+
+	const quickQuestions = [
+		showChinese ? "这个结论的主要依据是什么？" : "What evidence supports this review?",
+		showChinese ? "把高风险项转成修复清单。" : "Turn the key risks into a fix checklist.",
+		showChinese ? "哪些地方最需要人工复核？" : "What needs manual verification most?",
+	];
+
+	return (
+		<div className="dialog-backdrop" role="presentation">
+			<section
+				className="followup-dialog"
+				role="dialog"
+				aria-modal="true"
+				aria-label={showChinese ? "AI Review 追问" : "AI Review follow-up"}
+			>
+				<div className="followup-head">
+					<div>
+						<span>{showChinese ? "基于本次结论追问" : "Follow up on this result"}</span>
+						<p>{review.summary}</p>
+					</div>
+					<button className="copy-button" type="button" onClick={onClose}>
+						{showChinese ? "关闭" : "Close"}
+					</button>
+				</div>
+
+				<div className="followup-context">
+					<strong>{showChinese ? "上下文锚点" : "Context anchor"}</strong>
+					<p>
+						{showChinese ? "模型会带上原 PR、风险地图、本次 AI 结论和追问历史。" : "The model receives the PR, risk map, this AI result, and thread history."}
+					</p>
+				</div>
+
+				<div className="followup-messages">
+					{messages.length === 0 && (
+						<p className="body-text">
+							{showChinese
+								? "可以直接追问刚刚的判断、风险、修复方式或人工复核点。"
+								: "Ask about the reasoning, risks, fixes, or manual verification points."}
+						</p>
+					)}
+					{messages.map((message) => (
+						<div
+							key={message.id}
+							className={`followup-message followup-${message.role}`}
+						>
+							<span>{message.role === "user" ? "You" : "AI"}</span>
+							<p>{message.content}</p>
+						</div>
+					))}
+					{loading && (
+						<div className="followup-message followup-assistant">
+							<span>AI</span>
+							<p>{showChinese ? "正在基于上下文回答..." : "Answering from context..."}</p>
+						</div>
+					)}
+				</div>
+
+				{error && <p className="inline-error">{error}</p>}
+
+				<div className="quick-question-row">
+					{quickQuestions.map((item) => (
+						<button
+							key={item}
+							type="button"
+							disabled={loading}
+							onClick={() => setQuestion(item)}
+						>
+							{item}
+						</button>
+					))}
+				</div>
+
+				<form className="followup-form" onSubmit={handleSubmit}>
+					<textarea
+						value={question}
+						disabled={loading}
+						placeholder={showChinese ? "继续追问这次 AI Review..." : "Ask about this AI review..."}
+						onChange={(event) => setQuestion(event.target.value)}
+					/>
+					<button
+						className="secondary-button"
+						type="submit"
+						disabled={loading || !question.trim()}
+					>
+						{showChinese ? "发送" : "Send"}
+					</button>
+				</form>
+			</section>
 		</div>
 	);
 }
@@ -634,6 +826,7 @@ function RiskDonut({
 	report: ReviewReport;
 	showChinese: boolean;
 }) {
+	const donutRef = useRef<HTMLDivElement | null>(null);
 	const total =
 		report.riskCounts.blocking +
 		report.riskCounts.warning +
@@ -647,8 +840,10 @@ function RiskDonut({
 			}%, #1f7a6d ${blocking + warning}% ${blocking + warning + suggestion}%)`
 		: "conic-gradient(#dce3dc 0 100%)";
 
+	useRiskDonutAnimation(donutRef, [total, blocking, warning, suggestion]);
+
 	return (
-		<div className="risk-donut-wrap">
+		<div className="risk-donut-wrap" ref={donutRef}>
 			<div className="risk-donut" style={{ background: gradient }}>
 				<div>
 					<strong>{total}</strong>

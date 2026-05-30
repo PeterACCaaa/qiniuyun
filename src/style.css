@@ -23,7 +23,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
 	font: inherit;
 }
 
@@ -33,7 +34,8 @@ button {
 }
 
 button:disabled,
-input:disabled {
+input:disabled,
+textarea:disabled {
 	cursor: not-allowed;
 	opacity: 0.58;
 }
@@ -247,6 +249,7 @@ h2 {
 	background: #eef3ef;
 	color: #64736d;
 	overflow: hidden;
+	will-change: transform, opacity;
 }
 
 .scan-step::before {
@@ -365,7 +368,6 @@ h2 {
 
 .metric-card {
 	padding: 18px;
-	animation-delay: 60ms;
 }
 
 .metric-card span {
@@ -410,7 +412,7 @@ h2 {
 	width: 156px;
 	height: 156px;
 	border-radius: 999px;
-	animation: popIn 420ms ease both;
+	will-change: transform, opacity;
 }
 
 .risk-donut > div {
@@ -565,7 +567,7 @@ h2 {
 	display: block;
 	min-width: 2px;
 	transform-origin: left center;
-	animation: growBar 620ms ease both;
+	will-change: transform;
 }
 
 .change-add {
@@ -925,6 +927,10 @@ h2 {
 	gap: 16px;
 }
 
+.ai-result > * {
+	will-change: transform, opacity;
+}
+
 .ai-meta-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -934,6 +940,150 @@ h2 {
 .ai-risk-list {
 	display: grid;
 	gap: 12px;
+}
+
+.ai-summary-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 14px;
+	align-items: start;
+}
+
+.dialog-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-items: center;
+	padding: 22px;
+	background: rgba(17, 24, 22, 0.46);
+}
+
+.followup-dialog {
+	display: grid;
+	gap: 14px;
+	width: min(860px, 100%);
+	max-height: min(760px, calc(100vh - 44px));
+	overflow: hidden;
+	border: 1px solid rgba(114, 136, 126, 0.28);
+	border-radius: 8px;
+	padding: 18px;
+	background: #fff;
+	box-shadow: 0 28px 70px rgba(17, 24, 22, 0.24);
+}
+
+.followup-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.followup-head span,
+.followup-context strong {
+	color: #17201c;
+	font-weight: 900;
+}
+
+.followup-head p,
+.followup-context p {
+	margin: 6px 0 0;
+	color: #53615c;
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.followup-context {
+	border: 1px solid #e4ebe5;
+	border-radius: 7px;
+	padding: 12px 14px;
+	background: #f7faf7;
+}
+
+.followup-messages {
+	display: grid;
+	gap: 10px;
+	min-height: 180px;
+	max-height: 330px;
+	overflow: auto;
+	border: 1px solid #e4ebe5;
+	border-radius: 7px;
+	padding: 12px;
+	background: #fbfdfb;
+}
+
+.followup-message {
+	width: min(92%, 680px);
+	border-radius: 7px;
+	padding: 10px 12px;
+	background: #eef3ef;
+}
+
+.followup-user {
+	justify-self: end;
+	background: #e7f4ec;
+}
+
+.followup-assistant {
+	justify-self: start;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px #e4ebe5;
+}
+
+.followup-message span {
+	display: block;
+	margin-bottom: 4px;
+	color: #65736e;
+	font-size: 11px;
+	font-weight: 900;
+	text-transform: uppercase;
+}
+
+.followup-message p {
+	margin: 0;
+	color: #35433f;
+	line-height: 1.65;
+	white-space: pre-wrap;
+}
+
+.quick-question-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.quick-question-row button {
+	min-height: 30px;
+	border-radius: 999px;
+	padding: 0 10px;
+	background: #eef3ef;
+	color: #52615d;
+	font-size: 12px;
+	font-weight: 900;
+}
+
+.followup-form {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 10px;
+}
+
+.followup-form textarea {
+	width: 100%;
+	min-height: 76px;
+	max-height: 180px;
+	resize: vertical;
+	border: 1px solid #cfd8d0;
+	border-radius: 7px;
+	padding: 10px 12px;
+	color: #17201c;
+	background: #fff;
+	outline: none;
+	line-height: 1.5;
+}
+
+.followup-form textarea:focus {
+	border-color: #1f7a6d;
+	box-shadow: 0 0 0 3px rgba(31, 122, 109, 0.15);
 }
 
 .checklist {
@@ -986,57 +1136,7 @@ h2 {
 }
 
 .reveal {
-	animation: revealUp 420ms ease both;
-}
-
-.metric-card:nth-child(2),
-.dashboard-grid .panel:nth-child(2),
-.changed-file:nth-child(2),
-.finding:nth-child(2) {
-	animation-delay: 80ms;
-}
-
-.metric-card:nth-child(3),
-.changed-file:nth-child(3),
-.finding:nth-child(3) {
-	animation-delay: 140ms;
-}
-
-.metric-card:nth-child(4),
-.changed-file:nth-child(4),
-.finding:nth-child(4) {
-	animation-delay: 200ms;
-}
-
-@keyframes revealUp {
-	from {
-		opacity: 0;
-		transform: translateY(10px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-@keyframes growBar {
-	from {
-		transform: scaleX(0);
-	}
-	to {
-		transform: scaleX(1);
-	}
-}
-
-@keyframes popIn {
-	from {
-		opacity: 0;
-		transform: scale(0.92);
-	}
-	to {
-		opacity: 1;
-		transform: scale(1);
-	}
+	will-change: transform, opacity;
 }
 
 @keyframes spin {
@@ -1136,5 +1236,22 @@ h2 {
 
 	.ai-meta-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.ai-summary-row,
+	.followup-form {
+		grid-template-columns: 1fr;
+	}
+
+	.dialog-backdrop {
+		padding: 10px;
+	}
+
+	.followup-dialog {
+		max-height: calc(100vh - 20px);
+	}
+
+	.followup-head {
+		flex-direction: column;
 	}
 }

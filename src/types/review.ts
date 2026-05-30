@@ -102,6 +102,7 @@ export type AiReviewRisk = {
 };
 
 export type AiReview = {
+	resultId?: string;
 	summary: string;
 	verdict: AiReviewVerdict;
 	confidence: "high" | "medium" | "low";
@@ -138,6 +139,38 @@ export type AiReviewResponse =
 	| {
 			ok: true;
 			review: AiReview;
+	  }
+	| {
+			ok: false;
+			error: string;
+	  };
+
+export type AiFollowupMessage = {
+	id: string;
+	role: "user" | "assistant";
+	content: string;
+	model?: string;
+	createdAt: string;
+};
+
+export type AiFollowupAnswer = {
+	content: string;
+	model: string;
+	createdAt: string;
+};
+
+export type AiFollowupRequest = {
+	resultId: string;
+	threadId?: string;
+	question: string;
+};
+
+export type AiFollowupResponse =
+	| {
+			ok: true;
+			threadId: string;
+			answer: AiFollowupAnswer;
+			messages: AiFollowupMessage[];
 	  }
 	| {
 			ok: false;
