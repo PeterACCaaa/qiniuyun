@@ -30,7 +30,7 @@ export function App() {
 	const [reviewSkills, setReviewSkills] =
 		useState<ReviewSkill[]>(DEFAULT_REVIEW_SKILLS);
 	const [error, setError] = useState("");
-	const [showChinese, setShowChinese] = useState(false);
+	const [showChinese, setShowChinese] = useState(true);
 
 	useShellIntroAnimation(shellRef);
 

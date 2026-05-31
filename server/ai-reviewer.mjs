@@ -284,10 +284,10 @@ function buildPrompt(report, skills = resolveReviewSkills()) {
 		"- 如果 patch 不足以确认 bug，必须写成“需要复核”，不要直接断定。",
 		"",
 		"PR 上下文：",
-		"Review skill policy:",
-		"- Prioritize the enabled reviewSkills from the PR context.",
-		"- If a skill is not enabled, mention it only when there is blocking evidence.",
-		"- commentMarkdown must include one short line: Enabled skills: <skill labels>.",
+		"Review Skills 策略：",
+		"- 优先围绕 PR 上下文中启用的 reviewSkills 给出结论。",
+		"- 未启用的技能方向，只有在存在阻塞级证据时才需要提及。",
+		"- commentMarkdown 必须包含一行简短中文说明：已启用技能：<技能标签>。",
 		JSON.stringify(context, null, 2),
 	].join("\n");
 }

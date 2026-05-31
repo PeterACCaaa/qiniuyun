@@ -156,6 +156,7 @@ export function displayFinding(
 
 export function displayRiskOverview(raw: string, chinese: boolean) {
 	if (!chinese) return raw;
+	if (raw.startsWith("风险地图") || raw.startsWith("规则扫描")) return raw;
 
 	const match = raw.match(
 		/Risk map found (\d+) evidence-backed review priorities: (\d+) blocking, (\d+) warning, (\d+) suggestion\./,
@@ -167,6 +168,7 @@ export function displayRiskOverview(raw: string, chinese: boolean) {
 
 export function displaySummary(raw: string, chinese: boolean) {
 	if (!chinese) return raw;
+	if (raw.startsWith("已拉取真实 GitHub PR 数据")) return raw;
 
 	const match = raw.match(
 		/Fetched real GitHub PR data\. This PR changes (\d+) files \((\d+) additions, (\d+) deletions\): (.*)\./,
