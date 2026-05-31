@@ -40,6 +40,8 @@ type ReportPreviewProps = {
 	onGenerateAiReview: () => void;
 };
 
+type ReportSection = "overview" | "priorities" | "files" | "ai-review" | "markdown";
+
 export function ReportPreview({
 	report,
 	error,
@@ -55,8 +57,13 @@ export function ReportPreview({
 	onGenerateAiReview,
 }: ReportPreviewProps) {
 	const workspaceRef = useRef<HTMLDivElement | null>(null);
+	const [activeSection, setActiveSection] = useState<ReportSection>("overview");
 
 	useReportRevealAnimation(workspaceRef, report);
+
+	useEffect(() => {
+		setActiveSection("overview");
+	}, [report?.pr.url]);
 
 	if (error) {
 		return (
@@ -83,118 +90,212 @@ export function ReportPreview({
 		report.riskCounts.warning +
 		report.riskCounts.suggestion;
 	const highestSeverity = getHighestSeverity(report);
+	const navItems = [
+		{
+			id: "overview",
+			label: showChinese ? "概览" : "Overview",
+			value: displaySeverity(highestSeverity, showChinese),
+		},
+		{
+			id: "priorities",
+			label: showChinese ? "优先级" : "Priorities",
+			value: report.findings.length,
+		},
+		{
+			id: "files",
+			label: showChinese ? "文件" : "Files",
+			value: report.changedFiles.length,
+		},
+		{
+			id: "ai-review",
+			label: showChinese ? "AI Review" : "AI Review",
+			value: aiReview
+				? displayVerdict(aiReview.verdict, showChinese)
+				: showChinese
+					? "待生成"
+					: "Ready",
+		},
+		{
+			id: "markdown",
+			label: showChinese ? "Markdown" : "Markdown",
+			value: showChinese ? "输出" : "Output",
+		},
+	] satisfies Array<{
+		id: ReportSection;
+		label: string;
+		value: string | number;
+	}>;
 
 	return (
 		<div className="report-workspace" ref={workspaceRef}>
-			<section className="panel pr-card reveal">
-				<div className="section-title">
-					<span>PR 概览</span>
-					<a href={report.pr.url} target="_blank" rel="noreferrer">
-						打开 PR
-					</a>
+			<aside className="report-rail reveal" aria-label="Report navigation">
+				<div className="rail-title">
+					<span>{showChinese ? "审查工作台" : "Review Desk"}</span>
+					<strong>{totalRisk}</strong>
 				</div>
-				<h2>{report.pr.title}</h2>
-				<div className="meta-grid">
-					<span>作者：{report.pr.author}</span>
-					<span>状态：{displayPrState(report.pr.state, showChinese)}</span>
-					<span>
-						分支：{report.pr.headBranch} → {report.pr.baseBranch}
-					</span>
-					<span>更新：{formatDate(report.pr.updatedAt)}</span>
-				</div>
-			</section>
-
-			<section className="metric-grid">
-				<MetricCard
-					label={showChinese ? "变更文件" : "Changed Files"}
-					value={report.pr.changedFiles}
-				/>
-				<MetricCard
-					label={showChinese ? "新增 / 删除" : "Additions / Deletions"}
-					value={`+${report.pr.additions} / -${report.pr.deletions}`}
-				/>
-				<MetricCard
-					label={showChinese ? "风险信号" : "Risk Signals"}
-					value={totalRisk}
-				/>
-				<MetricCard
-					label={showChinese ? "最高风险等级" : "Highest Severity"}
-					value={displaySeverity(highestSeverity, showChinese)}
-				/>
-			</section>
-
-			<section className="dashboard-grid">
-				<div className="panel risk-visual reveal">
-					<div className="section-title">风险分布</div>
-					<RiskDonut report={report} showChinese={showChinese} />
-					<p className="body-text">
-						{displayRiskOverview(report.riskOverview, showChinese)}
-					</p>
-				</div>
-
-				<div className="panel summary-card reveal">
-					<div className="section-title">变更总结</div>
-					<p className="body-text">{displaySummary(report.summary, showChinese)}</p>
-				</div>
-			</section>
-
-			<section className="panel files-panel reveal">
-				<div className="section-title">
-					<span>{showChinese ? "变更文件" : "Changed Files"}</span>
-					<span>
-						{showChinese
-							? `${report.changedFiles.length} 个文件`
-							: `${report.changedFiles.length} files`}
-					</span>
-				</div>
-				<div className="file-list">
-					{report.changedFiles.map((file) => (
-						<ChangedFileRow key={file.filename} file={file} showChinese={showChinese} />
+				<nav>
+					{navItems.map((item) => (
+						<button
+							key={item.id}
+							type="button"
+							className={activeSection === item.id ? "active" : ""}
+							aria-pressed={activeSection === item.id}
+							onClick={() => setActiveSection(item.id)}
+						>
+							<span>{item.label}</span>
+							<strong>{item.value}</strong>
+						</button>
 					))}
-				</div>
-			</section>
+				</nav>
+			</aside>
 
-			<section className="panel findings-panel reveal">
-				<div className="section-title">
-					{showChinese ? "Review 优先级" : "Review Priorities"}
-				</div>
-				{report.findings.length ? (
-					<div className="finding-list">
-						{report.findings.map((finding) => (
-							<FindingCard
-								key={finding.id}
-								finding={finding}
-								showChinese={showChinese}
+			<div className="report-content">
+				{activeSection === "overview" && (
+					<div className="report-view">
+						<section className="panel pr-card reveal section-anchor">
+							<div className="section-title">
+								<span>{showChinese ? "PR 概览" : "PR Overview"}</span>
+								<a href={report.pr.url} target="_blank" rel="noreferrer">
+									{showChinese ? "打开 PR" : "Open PR"}
+								</a>
+							</div>
+							<h2>{report.pr.title}</h2>
+							<div className="meta-grid">
+								<span>{showChinese ? "作者" : "Author"}：{report.pr.author}</span>
+								<span>
+									{showChinese ? "状态" : "State"}：
+									{displayPrState(report.pr.state, showChinese)}
+								</span>
+								<span>
+									{showChinese ? "分支" : "Branch"}：{report.pr.headBranch} →{" "}
+									{report.pr.baseBranch}
+								</span>
+								<span>
+									{showChinese ? "更新" : "Updated"}：
+									{formatDate(report.pr.updatedAt)}
+								</span>
+							</div>
+						</section>
+
+						<section className="metric-grid" aria-label="PR metrics">
+							<MetricCard
+								label={showChinese ? "变更文件" : "Changed Files"}
+								value={report.pr.changedFiles}
 							/>
-						))}
+							<MetricCard
+								label={showChinese ? "新增 / 删除" : "Additions / Deletions"}
+								value={`+${report.pr.additions} / -${report.pr.deletions}`}
+							/>
+							<MetricCard
+								label={showChinese ? "风险信号" : "Risk Signals"}
+								value={totalRisk}
+							/>
+							<MetricCard
+								label={showChinese ? "最高风险等级" : "Highest Severity"}
+								value={displaySeverity(highestSeverity, showChinese)}
+							/>
+						</section>
+
+						<section className="dashboard-grid">
+							<div className="panel risk-visual reveal">
+								<div className="section-title">
+									{showChinese ? "风险分布" : "Risk Distribution"}
+								</div>
+								<RiskDonut report={report} showChinese={showChinese} />
+								<p className="body-text">
+									{displayRiskOverview(report.riskOverview, showChinese)}
+								</p>
+							</div>
+
+							<div className="panel summary-card reveal">
+								<div className="section-title">
+									{showChinese ? "变更总结" : "Change Summary"}
+								</div>
+								<p className="body-text">{displaySummary(report.summary, showChinese)}</p>
+							</div>
+						</section>
 					</div>
-				) : (
-					<p className="body-text">
-						风险地图没有发现明显确定性风险。下一步 AI 分析会继续检查语义层面的问题。
-					</p>
 				)}
-			</section>
 
-			<FileContextPanel contexts={report.fileContexts} showChinese={showChinese} />
+				{activeSection === "priorities" && (
+					<section className="panel findings-panel reveal section-anchor">
+						<div className="section-title">
+							<span>{showChinese ? "Review 优先级" : "Review Priorities"}</span>
+							<span>
+								{showChinese
+									? `${report.findings.length} 条`
+									: `${report.findings.length} items`}
+							</span>
+						</div>
+						{report.findings.length ? (
+							<div className="finding-list">
+								{report.findings.map((finding) => (
+									<FindingCard
+										key={finding.id}
+										finding={finding}
+										showChinese={showChinese}
+									/>
+								))}
+							</div>
+						) : (
+							<p className="body-text">
+								{showChinese
+									? "风险地图没有发现明显确定性风险。下一步 AI 分析会继续检查语义层面的问题。"
+									: "The risk map did not find obvious deterministic risks. AI review can still inspect semantic issues."}
+							</p>
+						)}
+					</section>
+				)}
 
-			<AiReviewPanel
-				review={aiReview}
-				loading={aiLoading}
-				error={aiError}
-				showChinese={showChinese}
-				mode={aiMode}
-				skills={reviewSkills}
-				onModeChange={onModeChange}
-				onSkillsChange={onSkillsChange}
-				onGenerate={onGenerateAiReview}
-			/>
+				{activeSection === "files" && (
+					<div className="details-grid section-anchor">
+						<section className="panel files-panel reveal">
+							<div className="section-title">
+								<span>{showChinese ? "变更文件" : "Changed Files"}</span>
+								<span>
+									{showChinese
+										? `${report.changedFiles.length} 个文件`
+										: `${report.changedFiles.length} files`}
+								</span>
+							</div>
+							<div className="file-list">
+								{report.changedFiles.map((file) => (
+									<ChangedFileRow
+										key={file.filename}
+										file={file}
+										showChinese={showChinese}
+									/>
+								))}
+							</div>
+						</section>
 
-			<section className="panel markdown-panel reveal">
-				<div className="section-title">
-					{showChinese ? "Markdown 输出" : "Markdown Output"}
-				</div>
-				<pre>{report.markdown}</pre>
-			</section>
+						<FileContextPanel contexts={report.fileContexts} showChinese={showChinese} />
+					</div>
+				)}
+
+				{activeSection === "ai-review" && (
+					<AiReviewPanel
+						review={aiReview}
+						loading={aiLoading}
+						error={aiError}
+						showChinese={showChinese}
+						mode={aiMode}
+						skills={reviewSkills}
+						onModeChange={onModeChange}
+						onSkillsChange={onSkillsChange}
+						onGenerate={onGenerateAiReview}
+					/>
+				)}
+
+				{activeSection === "markdown" && (
+					<section className="panel markdown-panel reveal section-anchor">
+						<div className="section-title">
+							{showChinese ? "Markdown 输出" : "Markdown Output"}
+						</div>
+						<pre>{report.markdown}</pre>
+					</section>
+				)}
+			</div>
 		</div>
 	);
 }
@@ -330,7 +431,7 @@ function AiReviewPanel({
 	useAiReviewRevealAnimation(panelRef, review, loading);
 
 	return (
-		<section className="panel ai-panel reveal" ref={panelRef}>
+		<section className="panel ai-panel reveal section-anchor" id="ai-review" ref={panelRef}>
 			<div className="section-title ai-panel-title">
 				<div>
 					<span>{showChinese ? "AI 深度 Review" : "AI Deep Review"}</span>
@@ -353,7 +454,12 @@ function AiReviewPanel({
 						showChinese={showChinese}
 						onChange={onSkillsChange}
 					/>
-					<button className="secondary-button" disabled={loading} onClick={onGenerate}>
+					<button
+						className="secondary-button"
+						type="button"
+						disabled={loading}
+						onClick={onGenerate}
+					>
 						{loading
 							? showChinese
 								? "生成中..."

@@ -72,11 +72,23 @@ export function useReportRevealAnimation(
 		() => {
 			if (!report || shouldReduceMotion()) return;
 
-			gsap
-				.timeline({ defaults: { duration: 0.42, ease: "power2.out" } })
-				.from(".reveal", { autoAlpha: 0, y: 14, stagger: 0.045 })
-				.from(
-					".change-bar span",
+			const revealItems = gsap.utils.toArray<HTMLElement>(".reveal");
+			const changeBars = gsap.utils.toArray<HTMLElement>(".change-bar span");
+			const timeline = gsap.timeline({
+				defaults: { duration: 0.42, ease: "power2.out" },
+			});
+
+			if (revealItems.length) {
+				timeline.from(revealItems, {
+					autoAlpha: 0,
+					y: 14,
+					stagger: 0.045,
+				});
+			}
+
+			if (changeBars.length) {
+				timeline.from(
+					changeBars,
 					{
 						scaleX: 0,
 						transformOrigin: "left center",
@@ -85,6 +97,7 @@ export function useReportRevealAnimation(
 					},
 					"-=0.28",
 				);
+			}
 		},
 		{ dependencies: [report], scope, revertOnUpdate: true },
 	);
@@ -118,6 +131,7 @@ export function useRiskDonutAnimation(
 ) {
 	useGSAP(
 		() => {
+			const legends = gsap.utils.toArray<HTMLElement>(".legend-item");
 			if (shouldReduceMotion()) return;
 
 			gsap.fromTo(
@@ -132,14 +146,16 @@ export function useRiskDonutAnimation(
 					overwrite: "auto",
 				},
 			);
-			gsap.from(".legend-item", {
-				autoAlpha: 0,
-				x: 8,
-				duration: 0.3,
-				ease: "power2.out",
-				stagger: 0.05,
-				overwrite: "auto",
-			});
+			if (legends.length) {
+				gsap.from(legends, {
+					autoAlpha: 0,
+					x: 8,
+					duration: 0.3,
+					ease: "power2.out",
+					stagger: 0.05,
+					overwrite: "auto",
+				});
+			}
 		},
 		{ dependencies: values, scope },
 	);
